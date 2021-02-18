@@ -1,0 +1,31 @@
+package com.hs.advertise.ui.activity;
+
+import android.app.Activity;
+import android.os.Bundle;
+import android.support.annotation.Nullable;
+import android.view.KeyEvent;
+
+import com.hs.advertise.R;
+
+/**
+ * Desc: TODO
+ * <p>
+ * Author: ganxinrong
+ * PackageName: com.hs.advertise.ui.activity
+ * ProjectName: trunk
+ * Date: 2020/5/9 9:45
+ */
+public class TestActivity extends Activity {
+    @Override
+    protected void onCreate(@Nullable Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_test);
+
+    }
+
+    @Override
+    public boolean onKeyDown(int keyCode, KeyEvent event) {
+        //ActivityUtil.getInstance().finishAllActivity();
+        return super.onKeyDown(keyCode, event);
+    }
+}

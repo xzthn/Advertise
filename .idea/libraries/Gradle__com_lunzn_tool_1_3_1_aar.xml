@@ -1,0 +1,12 @@
+<component name="libraryTable">
+  <library name="Gradle: com.lunzn:tool:1.3.1@aar">
+    <CLASSES>
+      <root url="file://$USER_HOME$/.gradle/caches/transforms-2/files-2.1/2196a73d6dd1b375905310b31ff5d1a0/res" />
+      <root url="jar://$USER_HOME$/.gradle/caches/transforms-2/files-2.1/2196a73d6dd1b375905310b31ff5d1a0/jars/classes.jar!/" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES>
+      <root url="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/com.lunzn/tool/1.3.1/32427be6d2f12856f9aad736acdb49913f8490fd/tool-1.3.1-sources.jar!/" />
+    </SOURCES>
+  </library>
+</component>

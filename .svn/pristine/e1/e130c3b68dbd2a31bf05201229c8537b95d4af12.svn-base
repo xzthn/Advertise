@@ -1,0 +1,87 @@
+package com.hs.advertise.business;
+
+import com.alibaba.fastjson.JSONObject;
+import com.hs.advertise.utils.net.Base64Utils;
+
+import java.io.IOException;
+import java.io.UnsupportedEncodingException;
+import java.security.GeneralSecurityException;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Map;
+
+import javax.crypto.Mac;
+import javax.crypto.SecretKey;
+import javax.crypto.spec.SecretKeySpec;
+
+/**
+ * 签名工具类
+ *
+ * @author ganxinrong
+ * @version [版本号, 2020年3月10日]
+ */
+public abstract class SignUtil {
+
+
+    private final static String secret = "lunzn^&ad";
+
+
+    /**
+     * 重构json
+     *
+     * @param params 要签名的参数
+     * @return 生成的签名
+     * @throws IOException IO异常
+     */
+    public static String reBuildParams(Map<String, Object> params) {
+        String sign = getSign(params);
+        params.put("sign", sign);
+        return JSONObject.toJSONString(params);
+    }
+
+
+    /**
+     * 接口参数签名方法
+     *
+     * @param params 要签名的参数
+     * @return 生成的签名
+     * @throws IOException IO异常
+     */
+    public static String getSign(Map<String, Object> params) {
+        ArrayList<String> keys = new ArrayList<String>(params.keySet());
+        Collections.sort(keys);
+        StringBuilder sb = new StringBuilder();
+        for (String key : keys) {
+            if (!"sign".equals(key)) {
+                sb.append(key).append(params.get(key));
+            }
+        }
+        return hmacsha256(sb.toString(), secret);
+    }
+
+    /**
+     * 接口签名加密算法
+     *
+     * @param data   要签名的字符串
+     * @param secret 签名密钥
+     * @return 生成的签名
+     * @throws IOException IO异常
+     */
+    public static String hmacsha256(String data, String secret) {
+        byte[] bytes = null;
+        try {
+            SecretKey secretKey = new SecretKeySpec(secret.getBytes("UTF-8"), "HMACSHA256");
+            Mac mac = Mac.getInstance("HmacSHA256");
+            mac.init(secretKey);
+            bytes = mac.doFinal(data.getBytes("UTF-8"));
+        } catch (GeneralSecurityException e) {
+            e.printStackTrace();
+        } catch (IllegalStateException e) {
+            e.printStackTrace();
+        } catch (UnsupportedEncodingException e) {
+            e.printStackTrace();
+        }
+        return Base64Utils.encode(bytes);
+    }
+
+}

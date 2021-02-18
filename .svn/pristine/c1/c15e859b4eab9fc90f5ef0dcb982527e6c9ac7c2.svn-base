@@ -1,0 +1,29 @@
+package com.hs.advertise.receiver;
+
+import android.content.BroadcastReceiver;
+import android.content.Context;
+import android.content.Intent;
+
+import com.hs.advertise.service.BootService;
+import com.hs.advertise.service.LogService;
+import com.hs.advertise.service.NetWorkService;
+import com.lunzn.tool.log.LogUtil;
+
+/**
+ * Desc: 开机启动广播
+ * <p>
+ * Author: ganxinrong
+ * PackageName: com.hs.advertise.receiver
+ * ProjectName: Advertise
+ * Date: 2020/3/11 10:23
+ */
+public class BootBroadcastReceiver extends BroadcastReceiver {
+    private static final String TAG = "Tag_"+ BootBroadcastReceiver.class.getSimpleName();
+    @Override
+    public void onReceive(Context context, Intent intent) {
+        LogUtil.i(TAG,"开机启动了");
+        context.startService(new Intent(context, BootService.class));
+        context.startService(new Intent(context, LogService.class));
+        context.startService(new Intent(context, NetWorkService.class));
+    }
+}

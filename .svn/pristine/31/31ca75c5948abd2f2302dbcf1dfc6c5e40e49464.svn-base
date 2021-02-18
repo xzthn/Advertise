@@ -1,0 +1,524 @@
+package com.hs.advertise.ui.activity;
+
+import android.content.BroadcastReceiver;
+import android.content.Context;
+import android.content.Intent;
+import android.content.IntentFilter;
+import android.graphics.PixelFormat;
+import android.media.session.PlaybackState;
+import android.net.Uri;
+import android.support.annotation.Nullable;
+import android.view.View;
+import android.widget.Toast;
+
+import com.danikula.videocache.HttpProxyCacheServer;
+import com.google.android.exoplayer2.ExoPlaybackException;
+import com.google.android.exoplayer2.ExoPlayer;
+import com.google.android.exoplayer2.ExoPlayerFactory;
+import com.google.android.exoplayer2.Player;
+import com.google.android.exoplayer2.SimpleExoPlayer;
+import com.google.android.exoplayer2.Timeline;
+import com.google.android.exoplayer2.extractor.DefaultExtractorsFactory;
+import com.google.android.exoplayer2.extractor.ExtractorsFactory;
+import com.google.android.exoplayer2.source.ConcatenatingMediaSource;
+import com.google.android.exoplayer2.source.ExtractorMediaSource;
+import com.google.android.exoplayer2.source.LoopingMediaSource;
+import com.google.android.exoplayer2.source.MediaSource;
+import com.google.android.exoplayer2.source.TrackGroupArray;
+import com.google.android.exoplayer2.trackselection.AdaptiveTrackSelection;
+import com.google.android.exoplayer2.trackselection.DefaultTrackSelector;
+import com.google.android.exoplayer2.trackselection.TrackSelection;
+import com.google.android.exoplayer2.trackselection.TrackSelectionArray;
+import com.google.android.exoplayer2.trackselection.TrackSelector;
+import com.google.android.exoplayer2.ui.SimpleExoPlayerView;
+import com.google.android.exoplayer2.upstream.BandwidthMeter;
+import com.google.android.exoplayer2.upstream.DataSource;
+import com.google.android.exoplayer2.upstream.DefaultBandwidthMeter;
+import com.google.android.exoplayer2.upstream.DefaultDataSourceFactory;
+import com.google.android.exoplayer2.upstream.TransferListener;
+import com.google.android.exoplayer2.util.Util;
+import com.google.android.exoplayer2.video.VideoListener;
+import com.hs.advertise.MyApplication;
+import com.hs.advertise.R;
+import com.hs.advertise.business.PlayLogicUtil;
+import com.hs.advertise.business.UpdateTempLog;
+import com.hs.advertise.config.IntentValue;
+import com.hs.advertise.config.TypeParam;
+import com.hs.advertise.model.MessageModel;
+import com.hs.advertise.model.PlayLogJson;
+import com.hs.advertise.mvp.model.bean.AdInfo;
+import com.hs.advertise.mvp.model.bean.AdResource;
+import com.hs.advertise.mvp.model.bean.ClickAction;
+import com.hs.advertise.receiver.BroadcastAction;
+import com.hs.advertise.service.NetWorkService;
+import com.hs.advertise.thread.ThreadManager;
+import com.hs.advertise.ui.iterfaces.IViewUpdate;
+import com.hs.advertise.utils.ActivityUtil;
+import com.hs.advertise.utils.FileUtil;
+import com.hs.advertise.utils.RxjavaUtils;
+import com.lunzn.tool.autofit.AutoTextView;
+import com.lunzn.tool.log.LogUtil;
+import com.smart.localfile.LocalFileCRUDUtils;
+
+import java.util.ArrayList;
+import java.util.List;
+
+/**
+ * Desc: 视频播放页面
+ * <p>
+ * Author: ganxinrong
+ * PackageName: com.hs.advertise.ui.PhotoActivity
+ * ProjectName: Advertise
+ * Date: 2020/3/11 10:07
+ */
+public class VideoActivity extends BaseActivity implements IViewUpdate {
+
+    private static final String TAG = "Tag_" + VideoActivity.class.getSimpleName();
+    //视频缓存代理
+    private HttpProxyCacheServer proxy;
+    //服务器请求获取到的视频URL列表
+    private List<AdResource> mAdResources = new ArrayList<>();
+    private long currentTime;
+    private MyBroadcastReceiver receiver;
+    private AutoTextView tvSkip;
+    private AutoTextView tvDetail;
+    private SimpleExoPlayerView simpleExoPlayerView;
+    // 创建一个默认的TrackSelector
+    // 创建带宽
+    private BandwidthMeter bandwidthMeter = new DefaultBandwidthMeter();
+    // 创建轨道选择工厂
+    private TrackSelection.Factory videoTrackSelectionFactory = new AdaptiveTrackSelection.Factory(bandwidthMeter);
+    // 创建轨道选择器实例
+    private TrackSelector trackSelector = new DefaultTrackSelector(videoTrackSelectionFactory);
+    //创建播放器
+    private SimpleExoPlayer mExoPlayer;
+    private long resumePosition;
+    private ExoPlayer.EventListener eventListener;
+    private long mDuration;
+    private DefaultDataSourceFactory dataSourceFactory;
+    private DefaultExtractorsFactory extractorsFactory;
+    private AutoTextView tvTime;
+    private VideoListener mVideoListener;
+    private boolean isRemoteUpdate;
+    private boolean flag = false;
+    private boolean isNetURL = false;
+
+
+    @Override
+    protected int getLayoutresID() {
+        getWindow().setFormat(PixelFormat.TRANSLUCENT);
+        return R.layout.activity_video;
+    }
+
+    @Override
+    public void initData(Intent intent) {
+        super.initData(intent);
+        mAdResources = mAdInfo.getAdResources();
+        showClickActionView();
+        initExoplayer();
+    }
+
+    @Override
+    protected void initListener() {
+        LogUtil.i(TAG, "initListener");
+
+        eventListener = new ExoPlayer.EventListener() {
+            @Override
+            public void onTimelineChanged(Timeline timeline, @Nullable Object manifest, int reason) {
+                LogUtil.i(TAG, "播放: onTimelineChanged 周期总数 ");
+            }
+
+            @Override
+            public void onTracksChanged(TrackGroupArray trackGroups, TrackSelectionArray trackSelections) {
+                LogUtil.i(TAG, "播放: TrackGroupArray ");
+                startTempLog();
+            }
+
+            @Override
+            public void onPlayerStateChanged(boolean playWhenReady, int playbackState) {
+                switch (playbackState) {
+                    case PlaybackState.STATE_PLAYING:
+                        LogUtil.i(TAG, "播放状态: 准备 playing:" + mExoPlayer.getDuration());
+                        break;
+                    case PlaybackState.STATE_BUFFERING:
+                        LogUtil.i(TAG, "播放状态: 缓存完成 playing");
+                        break;
+                    case PlaybackState.STATE_CONNECTING:
+                        LogUtil.i(TAG, "播放状态: 连接 CONNECTING");
+                        break;
+                    case PlaybackState.STATE_ERROR://错误
+                        LogUtil.i(TAG, "播放状态: 错误 STATE_ERROR");
+                        break;
+                    case PlaybackState.STATE_NONE:
+                        LogUtil.i(TAG, "播放状态: 无 STATE_NONE");
+                        break;
+                    case PlaybackState.STATE_PAUSED:
+                        LogUtil.i(TAG, "播放状态: 暂停 PAUSED");
+                        break;
+                    case PlaybackState.STATE_SKIPPING_TO_NEXT:
+                        LogUtil.i(TAG, "播放状态: 跳到下一个");
+                        break;
+                    case PlaybackState.STATE_STOPPED:
+                        LogUtil.i(TAG, "播放状态: 停止的 STATE_STOPPED");
+                        break;
+                    case Player.STATE_ENDED:
+                        LogUtil.i(TAG, "没设循环，一轮播放完了");
+                        if (flag) {
+                            flag = false;
+                            mDuration = mExoPlayer.getDuration();
+                            writeTotal();
+                            finishJump();
+                        }
+                        break;
+                    default:
+                        LogUtil.i(TAG, "播放状态: " + playbackState);
+                        break;
+                }
+            }
+
+            @Override
+            public void onPlayerError(ExoPlaybackException error) {
+                LogUtil.i(TAG, "onPlayerError:" + "type:" + error.type + ",  异常情况：" + error.getMessage());
+                Toast.makeText(getApplicationContext(), "网络异常", Toast.LENGTH_LONG).show();
+                error.printStackTrace();
+                ActivityUtil.getInstance().finishAllActivity();
+            }
+
+            @Override
+            public void onPositionDiscontinuity(int reason) {
+                writeTotal();
+                mDuration = mExoPlayer.getDuration();
+                mCurrentPlayPosition = mExoPlayer.getCurrentWindowIndex();
+                LogUtil.i(TAG, "mCurrentPlayPosition:" + mCurrentPlayPosition + " isRemoteUpdate " + isRemoteUpdate);
+                //判断远程资源是否已经更新
+                if (isRemoteUpdate) {
+                    isRemoteUpdate = false;
+                    if (mAdResources.size() > 0) {
+                        LogUtil.i(TAG, "重新开始播放");
+                        initCanQuit();
+                        showClickActionView();
+                        startPlayer();
+                        startTempLog();
+                    } else {
+                        LogUtil.i(TAG, "退出当前视频页面");
+                        finish();
+                    }
+                }
+            }
+
+        };
+        mVideoListener = new VideoListener() {
+            @Override
+            public void onRenderedFirstFrame() {
+                LogUtil.i(TAG, "onRenderedFirstFrame");
+                flag = true;
+                if (mExoPlayer != null) {
+                    startTask();
+                }
+                //初始化播放点击事件并设置总时长
+                mDuration = mExoPlayer.getDuration();
+            }
+        };
+    }
+
+    @Override
+    protected void initReceiver() {
+        // 初始化广播过滤，监听服务器数据更新
+        IntentFilter intentFilter = new IntentFilter();
+        intentFilter.addAction(BroadcastAction.ACTION_UPDATE_VIDEO);
+        intentFilter.addAction(BroadcastAction.ACTION_UPDATE);
+        intentFilter.addAction(NetWorkService.NET_SPEED_RECEIVER_ACTION);
+        receiver = new MyBroadcastReceiver();
+        registerReceiver(receiver, intentFilter);
+    }
+
+
+    @Override
+    protected void initView() {
+        simpleExoPlayerView = (SimpleExoPlayerView) findViewById(R.id.simpleExoPlayerView);
+        simpleExoPlayerView.setControllerAutoShow(false);
+        tvDetail = (AutoTextView) findViewById(R.id.tv_detail);
+        tvSkip = (AutoTextView) findViewById(R.id.tv_skip);
+        tvTime = (AutoTextView) findViewById(R.id.tv_time);
+        tvDetail.setAlpha((float) 0.5);
+        tvSkip.setAlpha((float) 0.5);
+        tvTime.setAlpha((float) 0.5);
+        tvDetail.setTextSize(14);
+        tvSkip.setTextSize(14);
+        tvTime.setTextSize(14);
+    }
+
+    private void initExoplayer() {
+        destroyPlayer();
+        //获取缓存代理
+        proxy = MyApplication.getProxy(getApplication());
+        //创建播放器
+        mExoPlayer = ExoPlayerFactory.newSimpleInstance(this, trackSelector);
+        // 创建加载数据的工厂
+        dataSourceFactory = new DefaultDataSourceFactory(this,
+                Util.getUserAgent(this, "trunk"), (TransferListener) bandwidthMeter);
+        // 创建解析数据的工厂
+        extractorsFactory = new DefaultExtractorsFactory();
+
+        mExoPlayer.setVolume(1f);
+        mExoPlayer.addListener(eventListener);
+        mExoPlayer.addVideoListener(mVideoListener);
+        simpleExoPlayerView.setPlayer(mExoPlayer);
+        startPlayer();
+    }
+
+    private void startPlayer() {
+        // 传入Uri、加载数据的工厂、解析数据的工厂，就能创建出MediaSource
+        MediaSource[] mediaSources = getMediaSources(dataSourceFactory, extractorsFactory);
+        ConcatenatingMediaSource concatenatedSource = new ConcatenatingMediaSource(mediaSources);
+        if (mAdPosition == IntentValue.AD_POSITION_BOOT) {
+            //LoopingMediaSource loopSource = new LoopingMediaSource(getDynamicMediaSources(dataSourceFactory, extractorsFactory));
+            LoopingMediaSource compositeSource = new LoopingMediaSource(concatenatedSource);
+            mExoPlayer.prepare(compositeSource);
+        } else {
+            mExoPlayer.prepare(concatenatedSource);
+        }
+        mExoPlayer.setPlayWhenReady(true);
+        LogUtil.i(TAG, "isPlayingAd:" + mExoPlayer.isPlayingAd() + ",  isLoading：" + mExoPlayer.isLoading());
+    }
+
+
+    private MediaSource[] getMediaSources(DataSource.Factory dataSourceFactory, ExtractorsFactory extractorsFactory) {
+        MediaSource[] mediaSources = new MediaSource[mAdResources.size()];
+        for (int i = 0; i < mAdResources.size(); i++) {
+            Uri videoUri = getUri(mAdResources.get(i).getUrl(), mAdResources.get(i).getCrcCode());
+            MediaSource mediaSource = new ExtractorMediaSource(videoUri,
+                    dataSourceFactory, extractorsFactory, null, null);
+            mediaSources[i] = mediaSource;
+        }
+        return mediaSources;
+    }
+
+    private Uri getUri(String url, long crcCode) {
+        proxy.crcCodeMap.put(url, crcCode);
+        String proxyUrl = proxy.getProxyUrl(url);
+        LogUtil.i(TAG, "proxyUrl:" + proxyUrl);
+        if (proxyUrl.startsWith("http")) {
+            isNetURL = true;
+        }
+        return Uri.parse(proxyUrl);
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        if (mExoPlayer != null && mExoPlayer.getCurrentPosition() > 0) {
+            mExoPlayer.setVolume(1f);
+            mExoPlayer.setPlayWhenReady(true);
+            LogUtil.i(TAG, "onResume resumePosition:" + resumePosition);
+            mExoPlayer.seekTo(resumePosition);
+        }
+
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        LogUtil.i(TAG, "onPause()");
+        RxjavaUtils.cancel();
+        UpdateTempLog.getUpdateTempLog(getApplicationContext()).stop();
+        if (mExoPlayer != null) {
+
+            // TODO: 2020/9/4 解决应用启动广告，视频类型的广告，按返回键跳过后，还会有声音问题，不能暂停。暂停有坑
+            mExoPlayer.setVolume(0f);
+        }
+        LogUtil.i(TAG, "onPause end");
+
+    }
+
+    private void showClickActionView() {
+        ClickAction mClickAction = mAdInfo.getAdResources().get(mCurrentPlayPosition).getClickAction();
+        if (mClickAction == null) {
+            LogUtil.i(TAG, "动作为空");
+            tvDetail.setVisibility(View.GONE);
+        } else {
+            tvDetail.setVisibility(View.VISIBLE);
+            tvDetail.setText("按【OK键】查看详情");
+            LogUtil.i(TAG, "动作不为空");
+        }
+    }
+
+    private void startTempLog() {
+        currentTime = System.currentTimeMillis();
+        //开启一个间隔一分钟更新temp文件的定时任务
+        UpdateTempLog.getUpdateTempLog(getApplicationContext()).start(mExoPlayer, currentTime);
+        writeTemp();
+    }
+
+    /**
+     * 结束播放一条视频时把日志写到总的日志文件中
+     */
+    private void writeTotal() {
+        LogUtil.i(TAG, "video writeTotal()");
+        //把值赋给另外一个变量，防止currentTime被改变
+        final long time = currentTime;
+        final long duration = mDuration;
+        ThreadManager.getShortPool().execute(new Runnable() {
+            @Override
+            public void run() {
+                String tempPath = MessageModel.JSON_TEMP_LOCAL_PATH + "/temp_" + time + ".json";
+                //复制temp文件的内容到总的日志文件
+                if (FileUtil.copyToTotal(duration, tempPath)) {
+                    // 删除temp文件
+                    LocalFileCRUDUtils.deleteFile(tempPath);
+                }
+            }
+        });
+    }
+
+    public void startTask() {
+
+        startTempLog();
+        LogUtil.i(TAG, "canQuit " + canQuit);
+        if (canQuit == 0) {
+            //如果不能跳过则隐藏此按钮
+            tvSkip.setVisibility(View.GONE);
+        } else if (canQuit == 1) {
+            if (mAdPosition == IntentValue.AD_POSITION_APP) {
+                starSkipTime();
+            } else {
+                tvSkip.setVisibility(View.VISIBLE);
+                tvSkip.setText("按【返回键】可跳过此广告");
+            }
+        }
+        if (mAdPosition == IntentValue.AD_POSITION_APP) {
+            starTotalTime();
+        } else {
+            tvTime.setVisibility(View.GONE);
+        }
+    }
+
+
+    private void starSkipTime() {
+        //跳过是1，总的是2
+        starSkipTime(this, 1);
+    }
+
+    private void starTotalTime() {
+        starTotalTime(this, 2);
+    }
+
+    /**
+     * 开始播放的同时把日志写入temp文件中
+     */
+    private void writeTemp() {
+        LogUtil.i(TAG, "video writeTemp ,mExoPlayer.getDuration() " + mExoPlayer.getDuration());
+        if (mAdInfo != null && mExoPlayer.getDuration() > 0 && mCurrentPlayPosition < mAdResources.size()) {
+            AdResource adResource = mAdResources.get(mCurrentPlayPosition);
+            LogUtil.i(TAG, "adResource name:" + adResource.getName());
+            final PlayLogJson logJson = new PlayLogJson();
+            logJson.setAdPosition(mAdPosition);
+            logJson.setDuration(mExoPlayer.getDuration());
+            logJson.setResourceId(adResource.getResourceId());
+            ThreadManager.getShortPool().execute(new Runnable() {
+                @Override
+                public void run() {
+                    FileUtil.writeJsonFileOnlyLine(logJson.getJson(), MessageModel.JSON_TEMP_LOCAL_PATH + "/temp_" + currentTime + ".json");
+                }
+            });
+        }
+    }
+
+    @Override
+    public void doProgress(long number, int type) {
+        if (type == 1) {
+            tvSkip.setVisibility(View.VISIBLE);
+            tvSkip.setText(number + "秒后 按【返回键】可跳过此广告");
+        } else if (type == 2) {
+//            LogUtil.i(TAG, "doProgress：" + number);
+            tvTime.setVisibility(View.VISIBLE);
+            tvTime.setText(number + "秒");
+
+//            tvDetail.setVisibility(View.VISIBLE);
+//            tvDetail.setText("按【OK键】查看详情");
+        }
+    }
+
+    @Override
+    public void onComplete(int type) {
+        if (type == 1) {
+            tvSkip.setVisibility(View.VISIBLE);
+            tvSkip.setText("按【返回键】可跳过此广告");
+        } else if (type == 2) {
+            tvTime.setVisibility(View.GONE);
+//            tvDetail.setVisibility(View.VISIBLE);
+//            tvDetail.setText("按【OK键】查看详情");
+        }
+    }
+
+    private class MyBroadcastReceiver extends BroadcastReceiver {
+
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            String action = intent.getAction();
+            if (action.equals(BroadcastAction.ACTION_UPDATE)) {
+                LogUtil.i(TAG, "视频源更新完毕，你只要加载播放即可 mAdPosition " + mAdPosition);
+                if (mAdPosition == IntentValue.AD_POSITION_BOOT) {
+                    AdInfo mFullScreenAds = PlayLogicUtil.getFullScreenAds();
+                    if (mFullScreenAds != null) {
+                        mAdInfo = mFullScreenAds;
+                        if (mFullScreenAds.getType() == TypeParam.TYPE_MULTIPLE_VIDEO || mFullScreenAds.getType() == TypeParam.TYPE_SINGLE_VIDEO) {
+                            int size = mAdInfo.getAdResources().size();
+                            if (size > 0) {
+//                                mAdResources.clear();
+                                mAdResources = mAdInfo.getAdResources();
+                                LogUtil.i(TAG, " mAdResources.size," + mAdResources.size());
+                                isRemoteUpdate = true;
+                            } else {
+                                finish();
+                            }
+                        } else {
+                            PlayLogicUtil.bootStartActivity(getApplicationContext(), mFullScreenAds);
+                            finish();
+                        }
+                    } else {
+                        finish();
+                    }
+                }
+            } else if (NetWorkService.NET_SPEED_RECEIVER_ACTION.equalsIgnoreCase(action)) {
+                if (isNetURL) {
+                    Toast.makeText(getApplicationContext(), "当前网速较差，请切换网络", Toast.LENGTH_LONG).show();
+                }
+
+            }
+        }
+    }
+
+    @Override
+    protected void onStop() {
+        super.onStop();
+        LogUtil.i(TAG, "onStop()");
+        if (mExoPlayer != null) {
+            mDuration = mExoPlayer.getContentPosition();
+            resumePosition = Math.max(0, mExoPlayer.getContentPosition());
+            mExoPlayer.setPlayWhenReady(false);
+            LogUtil.i(TAG, "onStop resumePosition:" + resumePosition);
+            LogUtil.i(TAG, "onStop mD is " + mExoPlayer.getDuration());
+            LogUtil.i(TAG, "onStop mDuration is " + mDuration);
+            writeTotal();
+        }
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        LogUtil.i(TAG, "onDestroy()");
+        destroyPlayer();
+        if (receiver != null) {
+            unregisterReceiver(receiver);
+        }
+    }
+
+    public void destroyPlayer() {
+        if (mExoPlayer != null) {
+            mExoPlayer.stop();
+            mExoPlayer.release();
+            mExoPlayer = null;
+        }
+    }
+}

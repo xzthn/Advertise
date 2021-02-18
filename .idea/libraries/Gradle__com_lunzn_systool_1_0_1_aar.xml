@@ -1,0 +1,12 @@
+<component name="libraryTable">
+  <library name="Gradle: com.lunzn:systool:1.0.1@aar">
+    <CLASSES>
+      <root url="jar://$USER_HOME$/.gradle/caches/transforms-2/files-2.1/6e1396da7a7024f04d100f35b5232492/jars/classes.jar!/" />
+      <root url="file://$USER_HOME$/.gradle/caches/transforms-2/files-2.1/6e1396da7a7024f04d100f35b5232492/res" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES>
+      <root url="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/com.lunzn/systool/1.0.1/415e00f791f05e013e0ba5e6567ceefb873f85fb/systool-1.0.1-sources.jar!/" />
+    </SOURCES>
+  </library>
+</component>

@@ -1,0 +1,158 @@
+package com.hs.advertise;
+
+import android.app.Application;
+import android.content.Context;
+import android.os.Handler;
+
+import com.bigkoo.convenientbanner.BuildConfig;
+import com.danikula.videocache.HttpProxyCacheServer;
+import com.google.gson.Gson;
+import com.hs.advertise.config.CloudConfig;
+import com.hs.advertise.config.URLs;
+import com.hs.advertise.model.MessageModel;
+import com.hs.advertise.mvp.model.bean.AdConfig;
+import com.hs.advertise.utils.DeviceUtil;
+import com.hs.advertise.utils.PackageUtil;
+import com.lunzn.systool.util.SystemUtil;
+import com.lunzn.tool.autofit.GetScreenSize;
+import com.lunzn.tool.crash.CrashHandler;
+import com.lunzn.tool.log.LogUtil;
+import com.lunzn.tool.util.CommonUtil;
+import com.lunzn.tool.util.DeviceInfoMgr;
+import com.platform.sdk.m2.request.RequestInit;
+
+public class MyApplication extends Application {
+    private static final String TAG = "Tag_" + MyApplication.class.getSimpleName();
+    public static MyApplication instance;
+    private AdConfig adConfig = null;
+    private HttpProxyCacheServer proxy;
+    public String mSn = "";
+    public String mChannel;
+    private Handler mHandler = new Handler();
+
+
+    @Override
+    public void onCreate() {
+        super.onCreate();
+        instance = this;
+//        URLs.init(this);
+        mChannel = com.hs.advertise.BuildConfig.FLAVOR;
+        checkSN();
+        LogUtil.init(this, "adverter");
+        LogUtil.setPrintLevel(BuildConfig.DEBUG ? LogUtil.LEVEL_V : LogUtil.LEVEL_NONE);
+        LogUtil.setSaveLevel(BuildConfig.DEBUG ? LogUtil.LEVEL_V : LogUtil.LEVEL_I);
+        CrashHandler.getInstance().init(this);
+
+        MessageModel.initCachePath(getApplicationContext());
+        GetScreenSize.initData(getApplicationContext());
+
+        initRequestPublicParams();
+        LogUtil.i(TAG, "应用启动了 ,_mSn " + mSn + " mChannel " + mChannel);
+
+
+    }
+
+
+    public static MyApplication getInstance() {
+
+        return instance;
+    }
+
+    public String getSn() {
+        return mSn;
+    }
+
+    /**
+     * 获取缓存代理对象
+     *
+     * @param context
+     * @return
+     */
+    public static HttpProxyCacheServer getProxy(Context context) {
+        MyApplication app = (MyApplication) context.getApplicationContext();
+        return app.proxy == null ? (app.proxy = app.newProxy()) : app.proxy;
+    }
+
+    private HttpProxyCacheServer newProxy() {
+        return new HttpProxyCacheServer.Builder(this)
+                // 缓存1G
+                .maxCacheSize(1024 * 1024 * 1024)
+                .openPlayAndCache(true)
+                .build();
+    }
+
+
+    public AdConfig getAdConfigBiz() {
+        if (adConfig == null) {
+            String data = CloudConfig.getCloudConfig().getString(this, CloudConfig.KEY_ADCONFIG);
+            LogUtil.i(TAG, "data:  " + data);
+            if (!CommonUtil.isEmpty(data)) {
+                adConfig = new Gson().fromJson(data, AdConfig.class);
+                AdConfig.DataBean dataBean = adConfig.getData();
+                if (dataBean != null && dataBean.getDataVersion() !=0 ){
+                    LogUtil.i(TAG, "getData:  " + dataBean.toString());
+                    return adConfig;
+                }
+            }
+        }
+        return adConfig;
+    }
+
+    public void checkSN() {
+        if (URLs.HISI.equalsIgnoreCase(mChannel)) {
+            mSn = DeviceUtil.getADSN();
+        } else {
+            DeviceInfoMgr.getInstance().connect(this, new DeviceInfoMgr.OnDeviceInfoListener() {
+                @Override
+                public void onResult(final DeviceInfoMgr.DeviceInfo device) {
+                    if (device != null) {
+                        mSn = device.getSn();
+                    } else {
+                        SystemUtil.changeFilePermission();
+                        mSn = SystemUtil.getSN();
+                    }
+
+                }
+            });
+        }
+        if (CommonUtil.isEmpty(mSn)) {
+            mHandler.postDelayed(new Runnable() {
+                @Override
+                public void run() {
+                    checkSN();
+                    initRequestPublicParams();
+                }
+            }, 100);
+
+        }
+
+    }
+
+    /**
+     * 初始化公共请求参数
+     */
+    private void initRequestPublicParams() {
+
+        String softwareVersion = SystemUtil.getSoftwareVersion();
+        String launcherSign = PackageUtil.getLauncherChannel();
+        RequestInit.setLauncherSign(launcherSign);
+        RequestInit.setLauncherVsn(PackageUtil.getLauncherVsnInfo());
+        RequestInit.setRomSign(softwareVersion);
+        RequestInit.setSn(mSn);
+
+        LogUtil.i(TAG, "sn号：" + mSn);
+        LogUtil.i(TAG, "rom渠道号：" + softwareVersion);
+        LogUtil.i(TAG, "LauncherVsn：" + PackageUtil.getLauncherVsnInfo());
+        LogUtil.i(TAG, "LauncherChannel：" + launcherSign);
+    }
+    public void setAdConfig(AdConfig adConfig) {
+
+        this.adConfig = adConfig;
+    }
+
+
+    @Override
+    public void onTerminate() {
+        super.onTerminate();
+    }
+}

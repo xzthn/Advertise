@@ -1,0 +1,98 @@
+package com.hs.advertise.utils;
+
+import android.graphics.Bitmap;
+import android.os.Environment;
+import android.util.Log;
+
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+
+/**
+ * Desc: TODO
+ * <p>
+ * Author: ganxinrong
+ * PackageName: com.hs.advertise.utils
+ * ProjectName: trunk
+ * Date: 2020/4/7 17:18
+ */
+public class PhotoUtil {
+
+
+    /**
+     * 保存bitmap到本地
+     *
+     * @param bitmap Bitmap
+     */
+    public static void saveBitmap(Bitmap bitmap) {
+        String path = Environment.getExternalStorageDirectory() + "/zupubao.jpg";
+        String savePath;
+        File filePic;
+        if (Environment.getExternalStorageState().equals(
+                Environment.MEDIA_MOUNTED)) {
+            savePath = path;
+        } else {
+            Log.e("mytag", "saveBitmap failure : sdcard not mounted");
+            return;
+        }
+        try {
+            filePic = new File(savePath);
+            if (!filePic.exists()) {
+                filePic.getParentFile().mkdirs();
+                filePic.createNewFile();
+            }
+            FileOutputStream fos = new FileOutputStream(filePic);
+            bitmap.compress(Bitmap.CompressFormat.JPEG, 500, fos);
+            fos.flush();
+            fos.close();
+        } catch (IOException e) {
+            Log.e("mytag", "saveBitmap: " + e.getMessage());
+            return;
+        }
+        Log.i("mytag", "saveBitmap success: " + filePic.getAbsolutePath());
+    }
+
+
+/*
+    */
+/**
+     * 自适应宽度加载图片。保持图片的长宽比例不变，通过修改imageView的高度来完全显示图片。
+     *//*
+
+    public static void loadIntoUseFitWidth(Context context, final String imageUrl, int errorImageId, final ImageView imageView) {
+        Glide.with(context)
+                .load(imageUrl)
+                .diskCacheStrategy(DiskCacheStrategy.SOURCE)
+                .listener(new RequestListener<String, GlideDrawable>() {
+                    @Override
+                    public boolean onException(Exception e, String model, Target<GlideDrawable> target, boolean isFirstResource) {
+                        return false;
+                    }
+
+                    @Override
+                    public boolean onResourceReady(GlideDrawable resource, String model, Target<GlideDrawable> target, boolean isFromMemoryCache, boolean isFirstResource) {
+                        if (imageView == null) {
+                            return false;
+                        }
+                        */
+/*if (imageView.getScaleType() != ImageView.ScaleType.FIT_XY) {
+                            imageView.setScaleType(ImageView.ScaleType.FIT_XY);
+                        }*//*
+
+                        ViewGroup.LayoutParams params = imageView.getLayoutParams();
+                        params.width=resource.getIntrinsicWidth();
+                        params.height =resource.getIntrinsicHeight();
+                        LogUtil.i("test","width:"+params.width);
+                        LogUtil.i("test","height:"+params.height);
+                        imageView.setLayoutParams(params);
+                        return false;
+                    }
+                })
+                .placeholder(errorImageId)
+                .error(errorImageId)
+                .into(imageView);
+    }
+*/
+
+
+}

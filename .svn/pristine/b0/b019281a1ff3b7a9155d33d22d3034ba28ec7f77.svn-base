@@ -1,0 +1,160 @@
+package com.hs.advertise.service;
+
+import android.app.Service;
+import android.content.Intent;
+import android.os.IBinder;
+import android.support.annotation.Nullable;
+
+import com.danikula.videocache.ProxyCacheUtils;
+import com.hs.advertise.business.PlayLogicUtil;
+import com.hs.advertise.business.UploadTotalLog;
+import com.hs.advertise.config.IntentParam;
+import com.hs.advertise.config.IntentValue;
+import com.hs.advertise.config.TypeParam;
+import com.hs.advertise.model.MessageModel;
+import com.hs.advertise.mvp.model.bean.AdInfo;
+import com.hs.advertise.mvp.model.bean.AdResource;
+import com.hs.advertise.ui.activity.PhotoActivity;
+import com.hs.advertise.ui.activity.VideoActivity;
+import com.hs.advertise.utils.ActivityUtil;
+import com.hs.advertise.utils.ArrayUtils;
+import com.hs.advertise.utils.FileFileter;
+import com.hs.advertise.utils.PackageUtil;
+import com.hs.advertise.utils.StringUtils;
+import com.hs.advertise.utils.net.NetwrokUtil;
+import com.lunzn.tool.log.LogUtil;
+import com.lunzn.tool.util.CommonUtil;
+
+import java.io.File;
+import java.io.Serializable;
+import java.util.List;
+
+/**
+ * Desc: 系统拦截应用启动,拉起本服务
+ * <p>
+ * Author: ganxinrong
+ * PackageName: com.hs.advertise.service
+ * ProjectName: Advertise
+ * Date: 2020/3/10 18:31
+ */
+public class InterfaceService extends Service {
+
+    private static final String TAG = "Tag_" + InterfaceService.class.getSimpleName();
+
+
+    @Nullable
+    @Override
+    public IBinder onBind(Intent intent) {
+        return null;
+    }
+
+    @Override
+    public int onStartCommand(Intent intent, int flags, int startId) {
+        LogUtil.i(TAG, "intent：" + intent);
+        if (intent == null) {
+            return START_STICKY;
+        }
+        if (!UploadTotalLog.getUploadTotalLog(this).isTaskRun()) {
+            LogUtil.i(TAG, "定期上传任务没启动，需要开始任务");
+            UploadTotalLog.getUploadTotalLog(this).start();
+        }
+        Intent targetIntent = intent.getParcelableExtra(IntentParam.KEY_TARGET_INTENT);
+        LogUtil.i(TAG, "intent包名：" + intent.getPackage());
+        LogUtil.i(TAG, "targetIntent action：" + targetIntent.getAction());
+        LogUtil.i(TAG, "targetIntent dataString：" + targetIntent.getDataString());
+        String packName = "";
+        String cPackageName = targetIntent.getComponent() == null ? "" : targetIntent.getComponent().getPackageName();
+        String mPackage = targetIntent.getPackage() == null ? "" : targetIntent.getPackage();
+        if (!CommonUtil.isEmpty(cPackageName)) {
+            packName = cPackageName;
+            LogUtil.i(TAG, "targetIntent包名：" + cPackageName);
+        } else if (!CommonUtil.isEmpty(mPackage)) {
+            packName = mPackage;
+            LogUtil.i(TAG, "Package：" + mPackage);
+        }
+        LogUtil.i(TAG, "packName:  " + packName);
+        AdInfo adInfo = PlayLogicUtil.getAppLaunchAds(packName);
+        LogUtil.i(TAG, "adInfo:  " + adInfo);
+        if (adInfo == null) {
+            LogUtil.i(TAG, "直接启动APP");
+            PackageUtil.startApp(getApplicationContext(), targetIntent);
+            LogUtil.i(TAG, "应用启动时启动了DownloadService");
+            Intent serviceIntent = new Intent(this, DownloadService.class);
+            if ("com.hs.advertise".equals(packName)) {
+                serviceIntent.putExtra(IntentParam.KEY_ACTIVITY_FLAG, IntentValue.ACTIVITY_FLAG_SPLASH);
+            }
+            startService(serviceIntent);
+        } else {
+            LogUtil.i(TAG, "广告类型：" + adInfo.getType());
+            if (adInfo.getType() == TypeParam.TYPE_SINGLE_PHOTO || adInfo.getType() == TypeParam.TYPE_MULTIPLE_PHOTO) {
+                PhotoActivity activity = (PhotoActivity) ActivityUtil.getInstance().getActivity(PhotoActivity.class);
+                if (activity != null && !activity.isDestroyed()) {
+                    if (!activity.mPackName.equals(packName)) {
+                        LogUtil.i(TAG, "按home键，之前的activity还活着，打开另外的应用，就应该重新创建activity");
+                        ActivityUtil.getInstance().finishActivity(PhotoActivity.class);
+                    }
+                }
+                Intent intent1 = new Intent(getApplicationContext(), PhotoActivity.class);
+                intent1.putExtra(IntentParam.KEY_ADINFO, (Serializable) adInfo);
+                intent1.putExtra(IntentParam.KEY_AD_POSITION, IntentValue.AD_POSITION_APP);
+                intent1.putExtra(IntentParam.KEY_TARGET_INTENT, targetIntent);
+                intent1.putExtra(IntentParam.KEY_PACKNAME, packName);
+                intent1.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                startActivity(intent1);
+            } else {
+                boolean isDefault = false;
+                LogUtil.i(TAG, "pkname:" + adInfo.getPkg());
+                List<AdResource> mAdResources = adInfo.getAdResources();
+                int frontCount = mAdResources.size();
+                if (!NetwrokUtil.isNetworkConnected(this)) {
+                    File file = new File(MessageModel.VIDEO_CACHE_LOCAL_PATH);
+                    String[] files = file.list(new FileFileter());
+                    if (files.length == 0) {
+                        isDefault = true;
+                    } else {
+                        for (int i = 0; i < mAdResources.size(); i++) {
+                            AdResource mAdResource = mAdResources.get(i);
+                            String name = ProxyCacheUtils.computeMD5(mAdResource.getUrl()) + "." + StringUtils.getExtension(mAdResource.getUrl());
+                            if (!ArrayUtils.contains(files, name)) {
+                                mAdResources.remove(i);
+                            }
+                        }
+                    }
+                }
+                int behindCount = mAdResources.size();
+                if (isDefault || behindCount == 0) {
+                    playDefault();
+                } else {
+                    VideoActivity activity = (VideoActivity) ActivityUtil.getInstance().getActivity(VideoActivity.class);
+                    if (activity != null && !activity.isDestroyed()) {
+                        if (!activity.mPackName.equals(packName)) {
+                            LogUtil.i(TAG, "按home键，之前的activity还活着，打开另外的应用，就应该重新创建activity");
+                            ActivityUtil.getInstance().finishActivity(VideoActivity.class);
+                        }
+                    }
+                    Intent intent2 = new Intent(getApplicationContext(), VideoActivity.class);
+                    intent2.putExtra(IntentParam.KEY_ADINFO, (Serializable) adInfo);
+                    intent2.putExtra(IntentParam.KEY_AD_POSITION, IntentValue.AD_POSITION_APP);
+                    intent2.putExtra(IntentParam.KEY_TARGET_INTENT, targetIntent);
+                    intent2.putExtra(IntentParam.KEY_PACKNAME, packName);
+                    if (behindCount < frontCount) {
+                        intent2.putExtra(IntentParam.KEY_RESOURCES_REDUCE, 1);
+                    }
+                    intent2.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                    startActivity(intent2);
+                }
+
+            }
+        }
+        return START_STICKY;
+    }
+
+    private void playDefault() {
+        //什么都没有，播放默认一张图
+        Intent defoultIntent = new Intent(getApplicationContext(), PhotoActivity.class);
+        defoultIntent.putExtra(IntentParam.KEY_AD_POSITION, IntentValue.AD_POSITION_BOOT);
+        defoultIntent.putExtra(IntentParam.KEY_COME_FROM, IntentValue.COME_FORM_SPLASH);
+        startActivity(defoultIntent);
+
+    }
+}

@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="utf-8"?>
+<merge xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+
+    <!-- 翻页指示点的viewgroup -->
+
+    <com.bigkoo.convenientbanner.view.CBLoopViewPager
+        android:id="@+id/cbLoopViewPager"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
+
+    <com.lunzn.tool.autofit.AutoLinearLayout
+        android:id="@+id/loPageTurningPoint"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentBottom="true"
+        android:layout_centerHorizontal="true"
+        android:layout_margin="@dimen/convenientbanner_margin"
+        android:orientation="horizontal"></com.lunzn.tool.autofit.AutoLinearLayout>
+
+
+
+        <com.lunzn.tool.autofit.AutoLinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="right"
+            android:layout_alignParentRight="true"
+            android:layout_marginTop="20px"
+            android:layout_marginRight="14px">
+
+                <com.lunzn.tool.autofit.AutoTextView
+                    android:id="@+id/tv_time"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginRight="10px"
+                    android:background="@drawable/bg_top"
+                    android:clickable="false"
+                    android:gravity="center"
+                    android:paddingLeft="12px"
+                    android:paddingTop="6px"
+                    android:paddingRight="12px"
+                    android:paddingBottom="6px"
+                    android:text=""
+                    android:textColor="#ffffff"
+                    android:textSize="14px"
+                    android:visibility="gone"/>
+
+                <com.lunzn.tool.autofit.AutoTextView
+                    android:id="@+id/tv_detail"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="right"
+                    android:background="@drawable/bg_top"
+                    android:clickable="false"
+                    android:gravity="center"
+                    android:paddingLeft="12px"
+                    android:paddingTop="6px"
+                    android:paddingRight="12px"
+                    android:paddingBottom="6px"
+                    android:text="按【OK键】查看详情"
+                    android:textColor="#ffffff"
+                    android:textSize="14px" />
+        </com.lunzn.tool.autofit.AutoLinearLayout>
+    <com.lunzn.tool.autofit.AutoTextView
+        android:id="@+id/tv_skip"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentRight="true"
+        android:layout_alignParentBottom="true"
+        android:layout_gravity="right|bottom"
+        android:layout_margin="20px"
+        android:background="@drawable/bg_top"
+        android:clickable="false"
+        android:gravity="center"
+        android:paddingLeft="12px"
+        android:paddingTop="6px"
+        android:paddingRight="12px"
+        android:paddingBottom="6px"
+        android:text="0秒后 按【返回键】可跳过此广告"
+        android:textColor="#ffffff"
+        android:textSize="14px" />
+
+
+</merge>

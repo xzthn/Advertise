@@ -1,0 +1,115 @@
+package com.hs.advertise.receiver;
+
+import android.content.BroadcastReceiver;
+import android.content.Context;
+import android.content.Intent;
+import android.net.ConnectivityManager;
+import android.net.wifi.WifiManager;
+
+import com.hs.advertise.business.PlayLogicUtil;
+import com.hs.advertise.config.IntentParam;
+import com.hs.advertise.config.IntentValue;
+import com.hs.advertise.model.MessageModel;
+import com.hs.advertise.mvp.model.bean.AdInfo;
+import com.hs.advertise.service.DownloadService;
+import com.hs.advertise.thread.ThreadManager;
+import com.hs.advertise.utils.FileUtil;
+import com.hs.advertise.utils.StringUtils;
+import com.lunzn.tool.log.LogUtil;
+import com.smart.localfile.LocalFileCRUDUtils;
+import com.smart.util.Utils;
+
+import java.io.File;
+
+/**
+ * Desc: 开机启动广播
+ * <p>
+ * Author: ganxinrong
+ * PackageName: com.hs.advertise.receiver
+ * ProjectName: Advertise
+ * Date: 2020/3/11 10:23
+ */
+public class BootBroadcastReceiver extends BroadcastReceiver {
+    private static final String TAG = "Tag_" + BootBroadcastReceiver.class.getSimpleName();
+
+    @Override
+    public void onReceive(Context context, Intent intent) {
+        LogUtil.i(TAG, "开机启动了 " + intent.getAction());
+
+        String action = intent.getAction();
+        if (Intent.ACTION_BOOT_COMPLETED.equals(action)) {
+            LogUtil.i(TAG, "bootService onStartCommand");
+            bootStartCopyLog();
+
+            AdInfo mFullScreenAds = PlayLogicUtil.getFullScreenAds();
+            Intent mServiceintent = new Intent(context, DownloadService.class);
+            if (mFullScreenAds != null) {
+                PlayLogicUtil.bootStartActivity(context, mFullScreenAds);
+            } else {
+                mServiceintent.putExtra(IntentParam.KEY_ACTIVITY_FLAG, IntentValue.ACTIVITY_FLAG_NO);
+            }
+            context.startService(mServiceintent);
+
+
+        } else if (ConnectivityManager.CONNECTIVITY_ACTION.equals(action)
+                || WifiManager.WIFI_STATE_CHANGED_ACTION.equals(action)) {
+
+            LogUtil.i(TAG, "网络状态 " + Utils.isNetConnected(context));
+            if (Utils.isNetConnected(context)) {
+                Intent mServiceintent = new Intent(context, DownloadService.class);
+                context.startService(mServiceintent);
+            }
+        } else if ("android.net.pppoe.PPPOE_STATE_CHANGED".equals(action)) {
+
+            int mPppoeState = intent.getIntExtra("pppoe_state", 3);
+            LogUtil.i(TAG, "mPppoeState广播 " + mPppoeState);
+            if (mPppoeState == 1) {
+                Intent mServiceintent = new Intent(context, DownloadService.class);
+                context.startService(mServiceintent);
+            }
+        }
+    }
+
+    private void bootStartCopyLog() {
+        long currentTime = System.currentTimeMillis();
+        ThreadManager.getShortPool().execute(new Runnable() {
+            @Override
+            public void run() {
+                File file = new File(MessageModel.JSON_TEMP_LOCAL_LAST_PATH);
+                String[] files = file.list();
+                if (files != null) {
+                    for (int i = 0; i < files.length; i++) {
+                        String path = files[i];
+                        String timeStr = path.substring(path.lastIndexOf("/") + 1);
+                        if (StringUtils.isDigit(timeStr)) {
+                            long time = Long.parseLong(timeStr);
+                            LogUtil.e(TAG, "currentTime " + currentTime + " time " + time);
+                            if (currentTime > time) {
+                                String oldDirsPath = MessageModel.JSON_TEMP_LOCAL_LAST_PATH + time;
+                                File oldTempDirs = new File(oldDirsPath);
+                                if (oldTempDirs.isDirectory()) {
+                                    String[] oldFiles = oldTempDirs.list();
+                                    if (oldFiles != null) {
+                                        for (int j = 0; j < oldFiles.length; j++) {
+                                            String oldTempPath = oldDirsPath + "/" + oldFiles[j];
+                                            LogUtil.e(TAG, "oldTempPath：" + oldTempPath);
+                                            if (FileUtil.copyDirectToTotal(oldTempPath)) {
+                                                LogUtil.e(TAG, "删除oldTempPath");
+                                                // 删除temp文件
+                                                LocalFileCRUDUtils.deleteFile(oldTempPath);
+                                            }
+                                        }
+                                        LogUtil.e(TAG, "删除目录oldDirsPath：" + oldDirsPath);
+                                        LocalFileCRUDUtils.deleteFile(oldDirsPath);
+                                    }
+                                }
+                            }
+                        }
+
+                    }
+                }
+
+            }
+        });
+    }
+}

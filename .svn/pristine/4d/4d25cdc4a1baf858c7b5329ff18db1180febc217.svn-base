@@ -1,0 +1,112 @@
+package com.lzui.media.video.mediaplayer;
+
+/**
+ * 播放器 通用操作接口
+ *
+ * @author Administrator
+ * @version [版本号]
+ * @date 2016-12-6
+ * @project COM.LZ.M02.MEDIA
+ * @package com.lzui.media.video.mediaplayer
+ * @package MediaPlayerInterface.java
+ * @see [相关类/方法]
+ * @since [产品/模块版本]
+ */
+public interface MediaPlayerInterface {
+
+    public static final int SURFACE_ASPECT_MIN = 0;
+
+    public static final int SURFACE_BEST_FIT = 0;
+
+    public static final int SURFACE_FILL = 1;
+
+    public static final int SURFACE_16_9 = 2;
+
+    public static final int SURFACE_4_3 = 3;
+
+    public static final int SURFACE_ORIGINAL = 4;
+
+    public static final int SURFACE_235_100 = 5;
+
+    public static final int SURFACE_ASPECT_MAX = 5;
+
+    public void destroy();
+
+    public void playUrl(String url, boolean urlFromParse);
+
+    // public void playUrl(String url, long offset);
+    public void playUrl(String url, boolean urlFromParse, long offset);
+
+    /**
+     * Returns true if any media is playing
+     */
+    public boolean isPlaying();
+
+    public boolean isPaused();
+
+    /**
+     * Returns true if any media is seekable
+     */
+    public boolean isSeekable();
+
+    /**
+     * Plays any loaded media
+     */
+    public void play(); // 播放
+
+    /**
+     * Pauses any playing media
+     */
+    public void pause(); // 暂停
+
+    /**
+     * Stops any playing media
+     */
+    public void stop(); // 停止
+
+    /**
+     * Gets volume as integer
+     */
+    public int getVolume();
+
+    /**
+     * Sets volume as integer
+     *
+     * @param volume : Volume level passed as integer
+     */
+    public int setVolume(int volume);
+
+    /**
+     * Gets the current movie time (in ms).
+     *
+     * @return the movie time (in ms), or -1 if there is no media.
+     */
+    public long getTime(); // 当前时间
+
+    /**
+     * Sets the movie time (in ms), if any media is being played.
+     *
+     * @param time : Time in ms.
+     * @return the movie time (in ms), or -1 if there is no media.
+     */
+    public long setTime(long time); // 设置播放时间，只有正在播放时才有效果
+
+    /**
+     * Gets current movie's length in ms.
+     *
+     * @return the movie length (in ms), or -1 if there is no media.
+     */
+    public long getLength();// 获得总时长
+
+    /* default SURFACE_BEST_FIT */
+    public void setDisplayMode(int mode, boolean refreshNow);
+
+    public int getDisplayMode();
+
+    public void changeSurfaceSize();
+
+    public PlayerWapperInterface.INSTANCE_TYPE getType();
+
+    public void setVideoRegion(int x, int y, int w, int h);
+
+}

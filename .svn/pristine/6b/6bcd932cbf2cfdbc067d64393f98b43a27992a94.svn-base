@@ -1,0 +1,170 @@
+package com.hs.advertise.utils;
+
+import android.content.ComponentName;
+import android.content.Context;
+import android.content.Intent;
+import android.content.pm.ApplicationInfo;
+import android.content.pm.PackageInfo;
+import android.content.pm.PackageManager;
+
+import com.hs.advertise.MyApplication;
+import com.hs.advertise.config.URLs;
+import com.lunzn.tool.util.CommonUtil;
+import com.smart.data.DataFormat;
+
+/**
+ * Desc: TODO
+ * <p>
+ * Author: ganxinrong
+ * PackageName: com.hs.advertise.utils
+ * ProjectName: Advertise
+ * Date: 2020/3/12 17:53
+ */
+public class PackageUtil {
+    private static String LAUNCHER_CHANNEL = "";
+    private static String sLauncherChannel = "";
+
+    public static String getLauncherChannel() {
+        Context context = MyApplication.getInstance().getApplicationContext();
+        if (DataFormat.isEmpty(LAUNCHER_CHANNEL)) {
+            try {
+                String launcher = "";
+                if (URLs.getChannel().equalsIgnoreCase(URLs.LZM002)) {
+
+                    launcher = "com.lzui.launcher";
+                } else {
+                    launcher = "hs.launcher";
+                }
+                ApplicationInfo apInfo = context.getPackageManager().getApplicationInfo(launcher, PackageManager.GET_META_DATA);
+                LAUNCHER_CHANNEL = apInfo.metaData.getString("COVERSION");
+            } catch (PackageManager.NameNotFoundException e) {
+                e.printStackTrace();
+            }
+        }
+        return LAUNCHER_CHANNEL;
+    }
+
+    /**
+     * 获取launcher版本信息
+     *
+     * @return
+     */
+    public static String getLauncherVsnInfo() {
+        Context context = MyApplication.getInstance().getApplicationContext();
+        PackageInfo pkInfo;
+        String LAUNCHER_VERSION = null;
+        try {
+            String launcher = "";
+            if (URLs.getChannel().equalsIgnoreCase(URLs.LZM002)) {
+
+                launcher = "com.lzui.launcher";
+            } else {
+                launcher = "hs.launcher";
+            }
+            pkInfo = context.getPackageManager().getPackageInfo(launcher, 0);
+            if (pkInfo != null) {
+                LAUNCHER_VERSION = pkInfo.versionName;
+            }
+        } catch (PackageManager.NameNotFoundException e) {
+            e.printStackTrace();
+        }
+        return LAUNCHER_VERSION;
+    }
+
+
+    public static String getLauncherChannel(Context context) {
+        if (CommonUtil.isEmpty(sLauncherChannel)) {
+            try {
+                PackageManager pm = context.getPackageManager();
+                if (pm != null) {
+                    ApplicationInfo apInfo = pm.getApplicationInfo("hs.launcher", PackageManager.GET_META_DATA);
+                    if (apInfo != null && apInfo.metaData != null) {
+                        sLauncherChannel = apInfo.metaData.getString("COVERSION");
+                    }
+                }
+            } catch (PackageManager.NameNotFoundException e) {
+                e.printStackTrace();
+            }
+        }
+        return sLauncherChannel;
+    }
+
+    /**
+     * 获取应用程序名称
+     */
+    public static String getAppName(Context context) {
+        try {
+            PackageManager packageManager = context.getPackageManager();
+            PackageInfo packageInfo = packageManager.getPackageInfo(context.getPackageName(), 0);
+            int labelRes = packageInfo.applicationInfo.labelRes;
+            return context.getResources().getString(labelRes);
+        } catch (PackageManager.NameNotFoundException e) {
+            e.printStackTrace();
+            return null;
+        }
+    }
+
+    /**
+     * @return 当前应用的版本名称
+     */
+    public static String getVersionName() {
+        Context context = MyApplication.getInstance().getApplicationContext();
+        return getVersionName(context, context.getPackageName());
+    }
+
+    /**
+     * 获取版本名称
+     *
+     * @param context
+     * @param pkgname
+     * @return
+     */
+    public static String getVersionName(Context context, String pkgname) {
+        try {
+            PackageManager pm = context.getPackageManager();
+            PackageInfo packageInfo = pm.getPackageInfo(pkgname, 0);
+            return packageInfo.versionName;
+        } catch (PackageManager.NameNotFoundException e) {
+            e.printStackTrace();
+            return null;
+        }
+    }
+
+    /**
+     * @return 当前程序的版本号
+     */
+    public static int getVersionCode() {
+        Context context = MyApplication.getInstance().getApplicationContext();
+        return getVersionCode(context, context.getPackageName());
+    }
+
+    /**
+     * 获取版本号
+     *
+     * @return
+     */
+    public static int getVersionCode(Context context, String pkgname) {
+        try {
+            PackageManager pm = context.getPackageManager();
+            PackageInfo packageInfo = pm.getPackageInfo(pkgname, 0);
+            return packageInfo.versionCode;
+        } catch (Exception e) {
+            e.printStackTrace();
+            return 0;
+        }
+    }
+
+    public static void startApk(Context context, String packageName, String className) {
+
+        Intent intent = new Intent(Intent.ACTION_MAIN);
+        intent.addCategory(Intent.CATEGORY_LAUNCHER);
+        ComponentName cn = new ComponentName(packageName, className);
+        intent.setComponent(cn);
+        context.startActivity(intent);
+    }
+
+    public static void startApp(Context context, Intent intent) {
+
+        context.startActivity(intent);
+    }
+}

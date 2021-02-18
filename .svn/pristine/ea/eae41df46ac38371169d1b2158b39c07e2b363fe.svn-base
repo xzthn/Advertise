@@ -1,0 +1,126 @@
+package com.hs.advertise;
+
+import android.app.Application;
+import android.content.Context;
+
+import com.bigkoo.convenientbanner.BuildConfig;
+import com.danikula.videocache.HttpProxyCacheServer;
+import com.google.gson.Gson;
+import com.hs.advertise.config.CloudConfig;
+import com.hs.advertise.device.aidl.DeviceInfoBiz;
+import com.hs.advertise.model.MessageModel;
+import com.hs.advertise.mvp.model.bean.AdConfig;
+import com.hs.advertise.utils.DeviceInfoUtil;
+import com.hs.advertise.utils.PackageUtil;
+import com.lunzn.systool.util.SystemUtil;
+import com.lunzn.tool.autofit.GetScreenSize;
+import com.lunzn.tool.log.LogUtil;
+import com.lunzn.tool.util.CommonUtil;
+import com.platform.sdk.m2.request.RequestInit;
+
+public class MyApplication extends Application {
+    private static final String TAG = "Tag_" + MyApplication.class.getSimpleName();
+    public static MyApplication instance;
+    private AdConfig adConfig = null;
+    private DeviceInfoBiz deviceInfoBiz;
+    private HttpProxyCacheServer proxy;
+    public String mSn = null;
+
+
+    @Override
+    public void onCreate() {
+        super.onCreate();
+        instance = this;
+
+        LogUtil.init(this, "adverter");
+        LogUtil.setPrintLevel(com.bigkoo.convenientbanner.BuildConfig.DEBUG ? LogUtil.LEVEL_V : LogUtil.LEVEL_NONE);
+        LogUtil.setSaveLevel(BuildConfig.DEBUG ? LogUtil.LEVEL_V : LogUtil.LEVEL_I);
+
+        MessageModel.initCachePath(getApplicationContext());
+        GetScreenSize.initData(getApplicationContext());
+        deviceInfoBiz = new DeviceInfoBiz(getApplicationContext());
+
+        mSn = DeviceInfoUtil.getSN();
+        initRequestPublicParams();
+        LogUtil.i(TAG, "应用启动了 ,_mSn " + mSn);
+
+
+    }
+
+
+    public static MyApplication getInstance() {
+
+        return instance;
+    }
+
+    public String getSn() {
+        return mSn;
+    }
+
+    /**
+     * 获取缓存代理对象
+     *
+     * @param context
+     * @return
+     */
+    public static HttpProxyCacheServer getProxy(Context context) {
+        MyApplication app = (MyApplication) context.getApplicationContext();
+        return app.proxy == null ? (app.proxy = app.newProxy()) : app.proxy;
+    }
+
+    private HttpProxyCacheServer newProxy() {
+        return new HttpProxyCacheServer.Builder(this)
+                // 缓存1G
+                .maxCacheSize(1024 * 1024 * 1024)
+                .openPlayAndCache(true)
+                .build();
+    }
+
+
+    public AdConfig getAdConfigBiz() {
+        if (adConfig == null) {
+            String data = CloudConfig.getCloudConfig().getString(this, CloudConfig.KEY_ADCONFIG);
+            if (!CommonUtil.isEmpty(data)) {
+                adConfig = new Gson().fromJson(data, AdConfig.class);
+                AdConfig.DataBean dataBean = adConfig.getData();
+                if (dataBean != null && dataBean.getDataVersion() !=0 ){
+                    return adConfig;
+                }
+            }
+        }
+        return adConfig;
+    }
+
+    /**
+     * 初始化公共请求参数
+     */
+    private static void initRequestPublicParams() {
+        String softwareVersion = "";
+        String sn = "";
+        softwareVersion = SystemUtil.getSoftwareVersion();
+        sn = DeviceInfoUtil.getSN();
+        RequestInit.setLauncherSign(PackageUtil.getLauncherChannel());
+        RequestInit.setLauncherVsn(PackageUtil.getLauncherVsnInfo());
+        RequestInit.setRomSign(softwareVersion);
+        RequestInit.setSn(sn);
+        LogUtil.i(TAG, "sn号：" + sn);
+        LogUtil.i(TAG, "rom渠道号：" + softwareVersion);
+        LogUtil.i(TAG, "LauncherVsn：" + PackageUtil.getLauncherVsnInfo());
+        LogUtil.i(TAG, "LauncherChannel：" + PackageUtil.getLauncherChannel());
+    }
+    public void setAdConfig(AdConfig adConfig) {
+
+        this.adConfig = adConfig;
+    }
+
+
+    public DeviceInfoBiz getDeviceInfoBiz() {
+        return deviceInfoBiz;
+    }
+
+    @Override
+    public void onTerminate() {
+        deviceInfoBiz.unBindService();
+        super.onTerminate();
+    }
+}

@@ -1,0 +1,64 @@
+package com.hs.advertise.mvp.handle;
+
+
+import com.hs.advertise.BuildConfig;
+import com.hs.advertise.config.URLs;
+import com.lunzn.tool.log.LogUtil;
+
+import java.util.concurrent.TimeUnit;
+
+import okhttp3.OkHttpClient;
+import okhttp3.logging.HttpLoggingInterceptor;
+import retrofit2.Retrofit;
+import retrofit2.adapter.rxjava2.RxJava2CallAdapterFactory;
+import retrofit2.converter.gson.GsonConverterFactory;
+
+/**
+ * Retrofit 初始化
+ * Created by gxr on 17/5/9.
+ */
+public class RetrofitHandle {
+
+    private static final int DEFAULT_TIMEOUT = 10;
+    public Retrofit retrofit;
+
+    //构造方法私有
+    private RetrofitHandle() {
+        initRetrofit();
+    }
+
+    //获取单例
+    public static RetrofitHandle getInstance() {
+        return SingletonHolder.INSTANCE;
+    }
+
+    private void initRetrofit() {
+        //添加统一的log管理，打release包的时候记得将Level设置成Level.NONE
+        HttpLoggingInterceptor loggingInterceptor = new HttpLoggingInterceptor(new HttpLoggingInterceptor.Logger() {
+            @Override
+            public void log(String message) {
+                LogUtil.d("log_http", message);
+            }
+        });
+        if (BuildConfig.LOG_DEBUG) {
+            loggingInterceptor.setLevel(HttpLoggingInterceptor.Level.BODY);
+        } else {
+            loggingInterceptor.setLevel(HttpLoggingInterceptor.Level.NONE);
+        }
+        OkHttpClient.Builder builder = new OkHttpClient.Builder().addInterceptor(loggingInterceptor);
+        //手动创建一个OkHttpClient并设置超时时间
+        builder.connectTimeout(DEFAULT_TIMEOUT, TimeUnit.SECONDS);
+        retrofit = new Retrofit.Builder()
+                .client(builder.build())
+                .addConverterFactory(GsonConverterFactory.create())
+                .addCallAdapterFactory(RxJava2CallAdapterFactory.create())
+                .baseUrl(URLs.BASE_URL)
+                .build();
+
+    }
+
+    //在访问HttpMethods时创建单例
+    private static class SingletonHolder {
+        private static final RetrofitHandle INSTANCE = new RetrofitHandle();
+    }
+}

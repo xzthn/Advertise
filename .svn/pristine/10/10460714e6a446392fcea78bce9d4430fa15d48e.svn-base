@@ -1,0 +1,85 @@
+package com.hs.advertise.device.aidl;
+
+import android.app.Service;
+import android.content.ComponentName;
+import android.content.Context;
+import android.content.Intent;
+import android.content.ServiceConnection;
+import android.os.IBinder;
+
+import com.lunzn.tool.log.LogUtil;
+import com.lzui.device.aidl.IDevice;
+
+public class DeviceInfoBiz {
+
+    private String TAG = "DeviceInfoBiz";
+
+    private Context mContext;
+
+    private IDevice asInterface;
+
+    private boolean isBind = false;
+
+    private ServiceConnection conn = new ServiceConnection() {
+
+        @Override
+        public void onServiceConnected(ComponentName name, IBinder service) {
+            LogUtil.i(TAG, "onServiceConnected");
+            asInterface = IDevice.Stub.asInterface(service);
+        }
+
+        @Override
+        public void onServiceDisconnected(ComponentName name) {
+            asInterface = null;
+            isBind = false;
+        }
+    };
+
+    private void checkServiceConnected() {
+        long startTime = System.currentTimeMillis();
+        while (asInterface == null && System.currentTimeMillis() - startTime < 1500) {
+            try {
+                Thread.sleep(50);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
+    public DeviceInfoBiz(Context mContext) {
+        this.mContext = mContext;
+    }
+
+    /**
+     * 绑定aidl服务
+     */
+    public boolean bindAIDLService() {
+        // 创建所需绑定的Service的Intent  
+        Intent intent = new Intent();
+        intent.setAction("com.lzui.idevice.impl");
+        intent.setPackage("com.lz.m02.device");
+        // 绑定远程Service  
+        return mContext.bindService(intent, conn, Service.BIND_AUTO_CREATE);
+    }
+
+    public IDevice getAsInterface() {
+        if (asInterface == null) {
+            boolean result = bindAIDLService();
+            LogUtil.i(TAG, "getAsInterface_getAsInterface:result: " + result);
+            if (result) {
+                isBind = true;
+                checkServiceConnected();
+            } else {
+                isBind = false;
+            }
+        }
+        return asInterface;
+    }
+
+    public void unBindService() {
+        if (isBind) {
+            mContext.unbindService(conn);
+            isBind = false;
+        }
+    }
+}

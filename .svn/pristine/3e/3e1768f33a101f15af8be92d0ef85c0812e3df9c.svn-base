@@ -1,0 +1,288 @@
+package com.hs.advertise.ui.activity;
+
+import android.app.Activity;
+import android.content.Intent;
+import android.os.Bundle;
+import android.support.annotation.Nullable;
+import android.util.Log;
+import android.view.KeyEvent;
+import android.view.Window;
+import android.view.WindowManager;
+
+import com.hs.advertise.business.PlayLogicUtil;
+import com.hs.advertise.config.IntentParam;
+import com.hs.advertise.config.IntentValue;
+import com.hs.advertise.config.TypeParam;
+import com.hs.advertise.mvp.model.bean.AdInfo;
+import com.hs.advertise.mvp.model.bean.ClickAction;
+import com.hs.advertise.service.NetWorkService;
+import com.hs.advertise.ui.iterfaces.IViewUpdate;
+import com.hs.advertise.utils.ActivityUtil;
+import com.hs.advertise.utils.RxjavaUtils;
+import com.hs.advertise.utils.ServiceUtil;
+import com.hs.advertise.utils.SysProp;
+import com.hs.advertise.view.UnitWrapper;
+import com.lunzn.tool.log.LogUtil;
+
+/**
+ * Desc: TODO
+ * <p>
+ * Author: ganxinrong
+ * PackageName: com.hs.advertise.ui.activity
+ * ProjectName: trunk
+ * Date: 2020/3/24 17:25
+ */
+public abstract class BaseActivity extends Activity {
+    private static final String TAG = "Tag_" + BaseActivity.class.getSimpleName();
+    private boolean isPressKeyExit;
+    public AdInfo mAdInfo;
+    public Intent mTargetIntent;
+    public int mAdPosition;
+    public int mComeFrom;
+    public int canQuit = 0;//0,1,2
+    public long mCurrenSkipTime = 0;
+    public long mCurrenTotalTime = 0;
+    public int mCurrentPlayPosition = 0;
+    public String mPackName = "";
+    private BaseActivity mContext;
+
+    @Override
+    protected void onCreate(@Nullable Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        requestWindowFeature(Window.FEATURE_NO_TITLE);
+        getWindow().setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN, WindowManager.LayoutParams.FLAG_FULLSCREEN); // 设置全屏
+        setContentView(getLayoutresID());
+        LogUtil.i(TAG, this.getClass().getName() + "onCreate");
+        if (!ServiceUtil.isServiceRunning(this, "com.hs.advertise.service.NetWorkService")) {
+            LogUtil.i("BaseActivity", "NetWorkService没启动，启动一下");
+            startService(new Intent(this, NetWorkService.class));
+        }
+        ActivityUtil.getInstance().addActivity(this);
+        mContext = this;
+        initReceiver();
+        initView();
+        initListener();
+        initData();
+        setHomeKey();
+    }
+
+
+    public void initData() {
+        mAdInfo = (AdInfo) getIntent().getSerializableExtra(IntentParam.KEY_ADINFO);
+        mTargetIntent = getIntent().getParcelableExtra(IntentParam.KEY_TARGET_INTENT);
+        mAdPosition = getIntent().getIntExtra(IntentParam.KEY_AD_POSITION, 0);
+        mComeFrom = getIntent().getIntExtra(IntentParam.KEY_COME_FROM, 0);
+        mPackName = getIntent().getStringExtra(IntentParam.KEY_PACKNAME);
+        if (mPackName == null) {
+            mPackName = "";
+        }
+        int isReduce = getIntent().getIntExtra(IntentParam.KEY_RESOURCES_REDUCE, 0);
+        if (mAdInfo != null) {
+            LogUtil.i(TAG, "mAdInfo不为空");
+            LogUtil.i(TAG, "轮播间隔：" + mAdInfo.getInterval());
+            LogUtil.i(TAG, "adPosition：" + mAdPosition);
+            LogUtil.i(TAG, "SkipTime：" + mAdInfo.getSkipTime());
+            LogUtil.i(TAG, "CanQuit：" + mAdInfo.getCanQuit());
+            LogUtil.i(TAG, "pkg：" + mAdInfo.getPkg());
+            mCurrenSkipTime = mAdInfo.getSkipTime() / 1000;
+            if (mAdPosition == IntentValue.AD_POSITION_APP) {
+                if (mCurrenSkipTime > 0) {
+                    //如果跳过时间大于0
+                    canQuit = 1;
+                }
+            } else if (mAdPosition == IntentValue.AD_POSITION_BOOT) {
+                if (mAdInfo.getCanQuit() == 0) {
+                    canQuit = 0;
+                } else {
+                    canQuit = 1;
+                }
+            }
+            if (isReduce == 1) {
+                for (int i = 0; i < mAdInfo.getAdResources().size(); i++) {
+                    long mDuration = mAdInfo.getAdResources().get(i).getDuration();
+                    mCurrenTotalTime = mCurrenTotalTime + mDuration;
+                    mCurrenTotalTime = mCurrenTotalTime / 1000;
+                }
+            } else {
+                mCurrenTotalTime = mAdInfo.getTotalDuration() / 1000;
+            }
+            LogUtil.i(TAG, "mCurrenTotalTime:" + mCurrenTotalTime);
+        } else {
+            LogUtil.i(TAG, "mAdInfo为空");
+        }
+
+    }
+
+    public void starSkipTime(final IViewUpdate iViewUpdate, final int type) {
+        RxjavaUtils.countdown(mCurrenSkipTime, new RxjavaUtils.IRxNext() {
+            @Override
+            public void doNext(long number) {
+                iViewUpdate.doProgress(number, type);
+                mCurrenSkipTime = number;
+                // LogUtil.i(TAG, "doNext：" + mCurrenSkipTime);
+            }
+
+            @Override
+            public void onComplete() {
+                canQuit = 2;
+                mCurrenSkipTime = 0;
+                LogUtil.i(TAG, "onComplete");
+                iViewUpdate.onComplete(type);
+            }
+        });
+    }
+
+    public void starTotalTime(final IViewUpdate iViewUpdate, final int type) {
+
+        RxjavaUtils.countdown(mCurrenTotalTime, new RxjavaUtils.IRxNext() {
+            @Override
+            public void doNext(long number) {
+                iViewUpdate.doProgress(number, type);
+                mCurrenTotalTime = number;
+                LogUtil.i(TAG, "starTotalTime doNext：" + mCurrenTotalTime + "type:" + type);
+            }
+
+            @Override
+            public void onComplete() {
+                LogUtil.i(TAG, "starTotalTime onComplete" + " type:" + type);
+                iViewUpdate.onComplete(type);
+                if (mAdInfo.getType() == TypeParam.TYPE_SINGLE_PHOTO || mAdInfo.getType() == TypeParam.TYPE_MULTIPLE_PHOTO) {
+                    finishJump();
+                }
+
+            }
+        });
+    }
+
+    /**
+     * @param keyCode
+     * @param event
+     * @return
+     */
+    @Override
+    public boolean onKeyDown(int keyCode, KeyEvent event) {
+//        if (event.getAction() == KeyEvent.ACTION_DOWN) {
+//            LogUtil.e(TAG,"ACTION_DOWN");
+//            return super.onKeyDown(keyCode, event);
+//        }
+
+        switch (keyCode) {
+            case KeyEvent.KEYCODE_ENTER:     //确定键enter
+            case KeyEvent.KEYCODE_DPAD_CENTER:
+                Log.d(TAG, "enter--->");
+                if (mAdInfo != null && mAdInfo.getAdResources() != null && mAdInfo.getAdResources().size() > 0) {
+                    ClickAction mClickAction = mAdInfo.getAdResources().get(mCurrentPlayPosition).getClickAction();
+                    if (mClickAction != null) {
+                        UnitWrapper unitWrapper = new UnitWrapper(this, mClickAction);
+                        Log.d(TAG, "onClick--->");
+                        unitWrapper.onClick();
+                    }
+                }
+                break;
+            case KeyEvent.KEYCODE_BACK:    //返回键
+                Log.d(TAG, "back--->----------------");
+                if (canQuit == 2) {
+                    Log.d(TAG, "canQuit");
+                    if (mTargetIntent != null) {
+                        LogUtil.i(TAG, "------------");
+                        if (!"com.hs.advertise".equals(mPackName)) {
+                            LogUtil.i(TAG, "startActivity");
+                            try {
+                                startActivity(mTargetIntent);
+                            } catch (Exception e) {
+                                e.printStackTrace();
+                            }
+                            ActivityUtil.getInstance().finishAllActivity();
+                            return super.onKeyDown(keyCode, event);
+                        } else {
+                            LogUtil.i(TAG, "////////////");
+                            finish();
+                            PlayLogicUtil.continuePlayFull(mContext);
+                            return super.onKeyDown(keyCode, event);
+                        }
+                    } else {//说明是开机启动广告
+                        LogUtil.i(TAG, ".........." + mAdPosition);
+                        if (mAdPosition == IntentValue.AD_POSITION_BOOT) {
+                            LogUtil.i(TAG, "////=======");
+                            //home键设为有效，语音键有效，智控键有效，返回键有效
+                             ActivityUtil.getInstance().finishAllActivity();
+                            return super.onKeyDown(keyCode, event);
+                        }
+                    }
+                } else {
+                    LogUtil.i(TAG, "===========");
+                    if (mAdPosition == IntentValue.AD_POSITION_BOOT) {//如果是开机全屏广告
+                        if (canQuit != 1) {
+                            //home键设为无效，语音键无效，智控键无效，返回键无效
+                            if (mComeFrom == IntentValue.COME_FORM_SPLASH) {
+                                LogUtil.i(TAG, "/////////");
+                                finish();
+                            }
+                            LogUtil.i(TAG, "------------------");
+                            return true;//这里只能设置返回键无效
+                        }
+                    }else if (mAdPosition == IntentValue.AD_POSITION_APP){
+                        //canQuit!=2,说明跳过时间计时还没完，你不能直接跳转此广告
+                        return true;
+                    }
+                }
+                LogUtil.i(TAG, "===================");
+                return super.onKeyDown(keyCode, event);
+            default:
+                return super.onKeyDown(keyCode, event);
+        }
+        return super.onKeyDown(keyCode, event);
+    }
+
+    public void setHomeKey() {
+        if (canQuit == 2) {
+            if (mAdPosition == IntentValue.AD_POSITION_BOOT) {
+                //正常，不处理
+            }
+        } else {
+            if (mAdPosition == IntentValue.AD_POSITION_BOOT) {
+                SysProp.set("rw.home.key.enable", "false");
+            } else if (mAdPosition == IntentValue.AD_POSITION_APP) {
+                //正常，不处理
+            }
+        }
+    }
+
+    public void finishJump() {
+        if (mTargetIntent != null) {
+            if (!"com.hs.advertise".equals(mPackName)) {
+                LogUtil.i(TAG, "startActivity");
+                try {
+                    startActivity(mTargetIntent);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+                ActivityUtil.getInstance().finishAllActivity();
+            } else {
+                PlayLogicUtil.continuePlayFull(mContext);
+            }
+        }
+    }
+
+    protected abstract void initListener();
+
+
+    protected abstract void initView();
+
+    /**
+     * 设置布局
+     *
+     * @return layoutID
+     */
+    protected abstract int getLayoutresID();
+
+    protected abstract void initReceiver();
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        if (mAdPosition == IntentValue.AD_POSITION_BOOT) {
+            SysProp.set("rw.home.key.enable", "true");//把home健恢复正常
+        }
+    }
+}

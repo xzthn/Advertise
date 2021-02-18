@@ -1,0 +1,166 @@
+package com.hs.advertise.utils;
+
+import android.content.Context;
+import android.content.SharedPreferences;
+
+import com.hs.advertise.MyApplication;
+
+public class Preferences {
+
+    public static final int SNAP_TEXT = 0;
+    public static final int SNAP_IMG = 1;
+    public static final int SNAP_AUDIO = 2;
+    public static final int SNAP_VIDEO = 3;
+
+    public static final String KEY_USERNAME = "key_username";
+    private static final String KEY_USER_ACCOUNT = "id";
+    private static final String KEY_USER_TOKEN = "itk";
+    public static final String KEY_USER_JSON = "key_user_json";
+    public static final String KEY_LOGIN_TOKEN = "lgt";
+    private static final String SHOW_TIME_TEXT = "show_time_text";
+    private static final String SHOW_TIME_IMG = "show_time_img";
+    private static final String SHOW_TIME_AUDIO = "show_time_audio";
+    private static final String SHOW_TIME_VIDEO = "show_time_video";
+
+    public static void saveImUserAccount(String account, String token) {
+
+        MyApplication.getInstance().getSharedPreferences("Cfg_", Context.MODE_PRIVATE).edit()
+                .putString(KEY_USER_ACCOUNT, account)
+                .putString(KEY_USER_TOKEN, token)
+                .apply();
+    }
+
+    public static String getUserAccount() {
+
+        return MyApplication.getInstance().getSharedPreferences("Cfg_", Context.MODE_PRIVATE).getString(KEY_USER_ACCOUNT, "");
+    }
+
+    public static void saveImUserToken(String token) {
+
+        MyApplication.getInstance().getSharedPreferences("Cfg_", Context.MODE_PRIVATE).edit()
+                .putString(KEY_USER_TOKEN, token)
+                .apply();
+    }
+
+    public static String getImLoginToken() {
+
+        return MyApplication.getInstance().getSharedPreferences("Cfg_", Context.MODE_PRIVATE).getString(KEY_USER_TOKEN, "");
+    }
+
+    public static String getLoginToken() {
+
+        return MyApplication.getInstance().getSharedPreferences("Cfg_", Context.MODE_PRIVATE).getString(KEY_LOGIN_TOKEN, "");
+    }
+
+    public static void saveLoginToken(String token) {
+
+        MyApplication.getInstance().getSharedPreferences("Cfg_", Context.MODE_PRIVATE).edit()
+                .putString(KEY_LOGIN_TOKEN, token)
+                .apply();
+    }
+
+    public static void saveString(String key, String value) {
+
+        SharedPreferences.Editor editor = getSharedPreferences().edit();
+        editor.putString(key, value);
+        editor.apply();
+    }
+
+    public static String getString(String key) {
+
+        if ("id".equals(key)) {
+            return MyApplication.getInstance().getSharedPreferences("Cfg_", Context.MODE_PRIVATE).getString(KEY_USER_ACCOUNT, "");
+        }
+        return getSharedPreferences().getString(key, "");
+    }
+
+    public static void saveLong(String key, Long value) {
+
+        SharedPreferences.Editor editor = getSharedPreferences().edit();
+        editor.putLong(key, value);
+        editor.apply();
+    }
+
+    public static Long getLong(String key) {
+
+        return getSharedPreferences().getLong(key, -1);
+    }
+
+    static SharedPreferences getSharedPreferences() {
+
+        return MyApplication.getInstance().getSharedPreferences("Cfg_", Context.MODE_PRIVATE);
+    }
+
+    public static boolean getBoolean(String key) {
+
+        return getSharedPreferences().getBoolean(key, false);
+    }
+
+    public static void putBoolean(String key, boolean value) {
+
+        SharedPreferences.Editor editor = getSharedPreferences().edit();
+        editor.putBoolean(key, value);
+        editor.apply();
+    }
+
+    public static int getSnapShowTime(int type) {
+
+        switch (type) {
+            case SNAP_TEXT:
+                return getSharedPreferences().getInt(SHOW_TIME_TEXT, 10);
+            case SNAP_AUDIO:
+                return getSharedPreferences().getInt(SHOW_TIME_AUDIO, 10);
+            case SNAP_IMG:
+                return getSharedPreferences().getInt(SHOW_TIME_IMG, 10);
+            case SNAP_VIDEO:
+            default:
+                return getSharedPreferences().getInt(SHOW_TIME_VIDEO, 10);
+        }
+    }
+
+    public static void setSnapShowTime(int type, int showTime) {
+
+        SharedPreferences.Editor editor = getSharedPreferences().edit();
+        switch (type) {
+            case SNAP_TEXT:
+                editor.putInt(SHOW_TIME_TEXT, showTime);
+                break;
+            case SNAP_AUDIO:
+                editor.putInt(SHOW_TIME_AUDIO, showTime);
+                break;
+            case SNAP_IMG:
+                editor.putInt(SHOW_TIME_IMG, showTime);
+                break;
+            case SNAP_VIDEO:
+            default:
+                editor.putInt(SHOW_TIME_VIDEO, showTime);
+                break;
+        }
+        editor.apply();
+    }
+
+    private final static String KEY_EARPHONE_MODE = "KEY_EARPHONE_MODE";
+
+    public static void setEarPhoneModeEnable(boolean on) {
+
+        saveBoolean(KEY_EARPHONE_MODE, on);
+    }
+
+    public static boolean isEarPhoneModeEnable() {
+
+        return getBoolean(KEY_EARPHONE_MODE, true);
+    }
+
+    private static boolean getBoolean(String key, boolean value) {
+
+        return getSharedPreferences().getBoolean(key, value);
+    }
+
+    private static void saveBoolean(String key, boolean value) {
+
+        SharedPreferences.Editor editor = getSharedPreferences().edit();
+        editor.putBoolean(key, value);
+        editor.apply();
+    }
+
+}

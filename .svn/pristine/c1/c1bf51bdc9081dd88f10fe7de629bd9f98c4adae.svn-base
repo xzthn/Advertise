@@ -1,0 +1,66 @@
+package com.lzui.media.mediainterface;
+
+import android.os.Bundle;
+
+/***
+ * 播放状态 抽象接口类
+ * @author Administrator
+ * @date 2016-12-6
+ * @project COM.LZ.M02.MEDIA
+ * @package com.lzui.media.mediainterface
+ * @package PlayerStatusCallback.java
+ * @version [版本号]
+ * @see [相关类/方法]
+ * @since [产品/模块版本]
+ */
+public abstract class PlayerStatusCallback {
+
+    public abstract void onPlayOK();
+
+    /**
+     * onInfo
+     *
+     * @param eventtype
+     * @param bundle
+     */
+    public abstract void onPlayerInfo(int eventtype, Bundle bundle);
+
+    /***
+     * onError
+     * @param bundle
+     */
+    public abstract void onPlayerError(Bundle bundle);
+
+    /***
+     * onPrepared
+     * @param bundle
+     */
+    public abstract void onPlayerPrepared(Bundle bundle);
+
+    /***
+     * onComplete
+     * @param bundle
+     */
+    public abstract void onPlayerCompletion(Bundle bundle);
+
+    /***
+     * onVideoSizeChange
+     * @param bundle
+     */
+    public abstract void onPlayerVideoSizeChange(Bundle bundle);
+
+    /**
+     * ondie
+     *
+     * @param bundle
+     */
+    public abstract void onPlayerDieEvent(Bundle bundle);
+
+    /**
+     * seekcomplete
+     *
+     * @param bundle
+     */
+    public abstract void onPlayerSeekCompleteEvent(Bundle bundle);
+
+}

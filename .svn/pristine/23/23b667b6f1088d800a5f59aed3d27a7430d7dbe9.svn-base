@@ -1,0 +1,73 @@
+package com.hs.advertise.service;
+
+import android.app.Service;
+import android.content.BroadcastReceiver;
+import android.content.Context;
+import android.content.Intent;
+import android.content.IntentFilter;
+import android.net.ConnectivityManager;
+import android.os.IBinder;
+import android.support.annotation.Nullable;
+
+import com.hs.advertise.utils.net.NetwrokUtil;
+import com.lunzn.tool.log.LogUtil;
+
+/**
+ * Desc: TODO
+ * <p>
+ * Author: ganxinrong
+ * PackageName: com.hs.advertise.service
+ * ProjectName: trunk
+ * Date: 2020/4/22 16:08
+ */
+public class NetWorkService extends Service {
+    private boolean flag = true;//加个标志，否则onReceive方法会重复接收通知
+
+
+    public String TAG = NetWorkService.class.getSimpleName();
+    private NetworkResumeReciver mNetworkResumeReciver;
+
+    @Nullable
+    @Override
+    public IBinder onBind(Intent intent) {
+        return null;
+    }
+
+    @Override
+    public void onCreate() {
+        super.onCreate();
+        IntentFilter filter = new IntentFilter();
+        filter.addAction(ConnectivityManager.CONNECTIVITY_ACTION);
+        mNetworkResumeReciver=new NetworkResumeReciver();
+        registerReceiver(mNetworkResumeReciver,filter);
+    }
+
+    public class NetworkResumeReciver extends BroadcastReceiver {
+
+
+        public NetworkResumeReciver() {
+            LogUtil.i(TAG, "NetworkResumeReciver");
+        }
+
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            String action = intent.getAction();
+            LogUtil.i(TAG, "网络变化");
+            boolean isConnected = NetwrokUtil.isNetworkConnected(context);
+            if (isConnected) {
+                LogUtil.i(TAG, "网络是连接状态");
+                Intent mServiceintent = new Intent(context, DownloadService.class);
+                context.startService(mServiceintent);
+            }
+        }
+    }
+
+    @Override
+    public void onDestroy() {
+        super.onDestroy();
+        if (mNetworkResumeReciver!=null){
+           unregisterReceiver(mNetworkResumeReciver);
+        }
+    }
+}
+

@@ -1,0 +1,135 @@
+package com.hs.advertise.service;
+
+import android.app.Service;
+import android.content.Intent;
+import android.os.Handler;
+import android.os.IBinder;
+import android.support.annotation.Nullable;
+
+import com.alibaba.fastjson.JSONObject;
+import com.google.gson.Gson;
+import com.hs.advertise.MyApplication;
+import com.hs.advertise.business.PlayLogicUtil;
+import com.hs.advertise.config.CloudConfig;
+import com.hs.advertise.config.IntentParam;
+import com.hs.advertise.config.IntentValue;
+import com.hs.advertise.config.URLs;
+import com.hs.advertise.mvp.model.bean.AdConfig;
+import com.hs.advertise.mvp.model.bean.AdConfigMap;
+import com.hs.advertise.mvp.model.bean.AdInfo;
+import com.hs.advertise.mvp.model.iterfaces.UserInfoBiz;
+import com.hs.advertise.mvp.present.UserInfoPresent;
+import com.hs.advertise.receiver.BroadcastAction;
+import com.lunzn.tool.log.LogUtil;
+import com.smart.util.Utils;
+
+import java.util.concurrent.atomic.AtomicBoolean;
+
+/**
+ * Desc: 下载后台服务
+ * <p>
+ * Author: ganxinrong
+ * PackageName: com.hs.advertise.service
+ * ProjectName: Advertise
+ * Date: 2020/3/11 10:40
+ */
+public class DownloadService extends Service implements UserInfoBiz {
+
+    private static final String TAG = DownloadService.class.getSimpleName();
+    private UserInfoPresent mUserInfoPresent;
+    private int activityFlag;
+    public static AtomicBoolean hasGettedData = new AtomicBoolean(false);
+    private Handler mHandler = new Handler();
+
+    @Override
+    public void onCreate() {
+        super.onCreate();
+        mUserInfoPresent = new UserInfoPresent(this, this);
+    }
+
+    @Nullable
+    @Override
+    public IBinder onBind(Intent intent) {
+        return null;
+    }
+
+
+    @Override
+    public int onStartCommand(Intent intent, int flags, int startId) {
+        if (intent == null) {
+            LogUtil.i(TAG, "service intent为空");
+            return START_NOT_STICKY;
+        }
+
+        if (Utils.isNetConnected(this)) {
+            activityFlag = intent.getIntExtra(IntentParam.KEY_ACTIVITY_FLAG, -1);
+            LogUtil.i(TAG, "activityFlag:" + activityFlag);
+
+            getData();
+
+        }
+        return START_NOT_STICKY;
+    }
+
+    private void getData() {
+        if (hasGettedData.compareAndSet(false, true)) {
+            Long dataVersion = CloudConfig.getCloudConfig().getLong(getApplicationContext(), CloudConfig.KEY_DATA_VERSION);
+            LogUtil.i(TAG, "后台下载服务，去请求数据 dataVersion=" + dataVersion);
+            AdConfigMap map = new AdConfigMap();
+            map.setDataVersion(dataVersion);
+            mUserInfoPresent.commonOperate(URLs.BASE_URL + URLs.AD_CONFIG_URL, map.getMapData(), "post");
+        } else {
+            mHandler.postDelayed(new Runnable() {
+                @Override
+                public void run() {
+                    getData();
+                }
+            }, 5000);
+        }
+
+    }
+
+    /**
+     * 请求数据回调
+     *
+     * @param url
+     * @param object
+     */
+    @Override
+    public void onSuccess(String url, final Object object) {
+        String respJson = JSONObject.toJSONString(object);
+        LogUtil.i(TAG, "后台下载服务，响应数据：" + respJson);
+        hasGettedData.set(false);
+        final AdConfig adConfig = new Gson().fromJson(respJson, AdConfig.class);
+        if (adConfig.getRetCode() == 0 && adConfig.getData() != null) {
+            if (adConfig.getData().getDataVersion() != 0) {
+
+                MyApplication.getInstance().setAdConfig(adConfig);
+                CloudConfig.getCloudConfig().putLong(getApplicationContext(), CloudConfig.KEY_DATA_VERSION, adConfig.getData().getDataVersion());
+                CloudConfig.getCloudConfig().putString(getApplicationContext(), CloudConfig.KEY_ADCONFIG, respJson);
+                AdInfo mFullScreenAds = adConfig.getData().getFullScreenAds();
+
+                if (activityFlag == IntentValue.ACTIVITY_FLAG_NO) {
+                    if (mFullScreenAds != null && mFullScreenAds.getAdResources() != null && mFullScreenAds.getAdResources().size() > 0) {
+                        PlayLogicUtil.bootStartActivity(getApplicationContext(), mFullScreenAds);
+                    }
+                } else if (activityFlag == IntentValue.ACTIVITY_FLAG_SPLASH) {
+                    if (mFullScreenAds != null && mFullScreenAds.getAdResources() != null && mFullScreenAds.getAdResources().size() > 0) {
+                        LogUtil.i(TAG, "从播默认图到播真正的全屏广告");
+                        PlayLogicUtil.bootStartActivity(getApplicationContext(), mFullScreenAds);
+                    }
+                } else {
+                    LogUtil.i(TAG, "发送更新广告广播  ");
+                    Intent intent = new Intent(BroadcastAction.ACTION_UPDATE);
+                    sendBroadcast(intent);
+                }
+            }
+        }
+    }
+
+    @Override
+    public void onError(Throwable e) {
+        LogUtil.i(TAG, "后台下载服务，响应数据：" + e.getMessage());
+        hasGettedData.set(false);
+    }
+}

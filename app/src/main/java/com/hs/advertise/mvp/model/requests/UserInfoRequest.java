@@ -1,0 +1,90 @@
+package com.hs.advertise.mvp.model.requests;
+
+import android.content.Context;
+
+import com.hs.advertise.business.SignUtil;
+import com.hs.advertise.mvp.api.CommonService;
+import com.hs.advertise.mvp.handle.RetrofitHandle;
+import com.hs.advertise.mvp.handle.RetryWithDelay;
+import com.hs.advertise.mvp.subscribers.ProgressSubscriber;
+
+import java.util.Map;
+
+import io.reactivex.Observable;
+import io.reactivex.Observer;
+import io.reactivex.android.schedulers.AndroidSchedulers;
+import io.reactivex.schedulers.Schedulers;
+import okhttp3.RequestBody;
+
+
+public class UserInfoRequest {
+
+
+    /**
+     * 通用操作
+     *
+     * @param subscriber
+     * @param fields
+     */
+    public void commonOperate(Context context, ProgressSubscriber subscriber, String url, Map<String, Object> fields, String requestMethod) {
+        CommonService apiService = RetrofitHandle.getInstance().retrofit.create(CommonService.class);
+        Observable observable = null;
+        RequestBody body = RequestBody.create(okhttp3.MediaType.parse("application/json; charset=utf-8"), SignUtil.reBuildParams(fields));
+        if (requestMethod.equalsIgnoreCase("post")) {
+            observable = apiService.commonOperation(url, body);
+        }
+        toSubscribe(observable, subscriber);
+    }
+
+
+//    /**
+//     * 上传文件
+//     *
+//     * @param subscriber
+//     */
+//    public void uploadFile(Context context, File file, ProgressSubscriber subscriber) {
+//
+//        MultipartBody.Builder builder = new MultipartBody.Builder()
+//                .setType(MultipartBody.FORM);
+//        RequestBody fileBody = RequestBody.create(MediaType.parse("multipart/form-data"), file);
+//        builder.addFormDataPart("modelMap", file.getName(), fileBody);
+//        List<MultipartBody.Part> parts = builder.build().parts();
+//        HashMap<String, Object> fields = new BaseMap().getMapData();
+//        RequestBody body = RequestBody.create(okhttp3.MediaType.parse("application/json; charset=utf-8"), SignUtil.reBuildParams(fields));
+//        CommonService apiService = RetrofitHandle.getInstance().retrofit.create(CommonService.class);
+//        Observable observable = apiService.uploadFile(parts, body);
+//        toSubscribe(observable, subscriber);
+//    }
+//
+//    /**
+//     * 上传文件列表
+//     *
+//     * @param subscriber
+//     */
+//    public void uploadFileList(Context context, List<File> files, ProgressSubscriber subscriber) {
+//        CommonService apiService = RetrofitHandle.getInstance().retrofit.create(CommonService.class);
+//        MultipartBody.Builder builder = new MultipartBody.Builder()
+//                .setType(MultipartBody.FORM);
+//        for (int i = 0; i < files.size(); i++) {
+//            File file = files.get(i);
+//            RequestBody imageBody = RequestBody.create(MediaType.parse("multipart/form-data"), file);
+//            builder.addFormDataPart("modelMap" + i, file.getName(), imageBody);
+//        }
+//        List<MultipartBody.Part> parts = builder.build().parts();
+//        HashMap<String, Object> fields = new BaseMap().getMapData();
+//        RequestBody body = RequestBody.create(okhttp3.MediaType.parse("application/json; charset=utf-8"), SignUtil.reBuildParams(fields));
+//        Observable observable = apiService.uploadFile(parts, body);
+//        toSubscribe(observable, subscriber);
+//    }
+
+
+    public static <T> void toSubscribe(Observable<T> observable, Observer<? super T> subscriber) {
+        observable.subscribeOn(Schedulers.io())
+                .retryWhen(new RetryWithDelay(2, 5))//请求2次，间隔5秒
+                .subscribeOn(AndroidSchedulers.mainThread())
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe(subscriber);
+    }
+
+
+}

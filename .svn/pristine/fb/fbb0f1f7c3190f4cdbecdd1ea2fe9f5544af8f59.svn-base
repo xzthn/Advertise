@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.hs.advertise"
+    android:sharedUserId="android.uid.system">
+
+    <application
+        android:name="com.hs.advertise.MyApplication"
+        android:allowBackup="true"
+        android:hardwareAccelerated="true"
+        android:icon="@drawable/app_logo"
+        android:label="@string/app_name"
+        android:supportsRtl="true"
+        android:theme="@android:style/Theme.Black.NoTitleBar.Fullscreen">
+
+        <activity
+            android:name="com.hs.advertise.ui.activity.SplashActivity"
+            android:theme="@style/MyActivityTheme">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+        <activity
+            android:name="com.hs.advertise.ui.activity.VideoActivity"
+            android:exported="true"
+            android:label="视频播放器"
+            android:launchMode="singleTask" />
+        <activity
+            android:name="com.hs.advertise.ui.activity.PhotoActivity"
+            android:exported="true"
+            android:label="图片播放器" />
+
+        <receiver android:name="com.hs.advertise.receiver.BootBroadcastReceiver">
+            <intent-filter android:priority="2147483647">
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.net.conn.CONNECTIVITY_CHANGE" />
+                <action android:name="android.net.pppoe.PPPOE_STATE_CHANGED" />
+                <action android:name="android.net.wifi.WIFI_STATE_CHANGED" />
+            </intent-filter>
+        </receiver>
+        <service
+            android:name="com.hs.advertise.service.InterfaceService"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="service.handle.interface.event" />
+            </intent-filter>
+        </service>
+        <service android:name="com.hs.advertise.service.DownloadService">
+            <intent-filter>
+                <action android:name="service.handle.download.event" />
+            </intent-filter>
+        </service>
+        <service
+            android:name="com.hs.advertise.service.mqtt.MessagePushService"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="service.handle.push.event" />
+            </intent-filter>
+        </service>
+        <service android:name="com.hs.advertise.service.LogService" />
+
+    </application>
+    <!-- 允许程序设置内置sd卡的写权限 -->
+    <permission android:name="android.permission.CHANGE_COMPONENT_ENABLED_STATE" />
+    <uses-permission android:name="android.permission.INTERNET" />
+    <!-- 允许程序获取网络状态 -->
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
+    <!-- 允许程序访问WiFi网络信息 -->
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
+    <!-- 允许程序读写手机状态和身份 -->
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <!-- 允许程序访问CellID或WiFi热点来获取粗略的位置 -->
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+    <uses-permission android:name="android.permission.READ_PHONE_STATE" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <uses-permission android:name="android.permission.ACTION_MANAGE_OVERLAY_PERMISSION" />
+    <!-- Optional for location -->
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" /> <!-- 用于开启 debug 版本的应用在6.0 系统上 层叠窗口权限 -->
+    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
+    <uses-permission android:name="android.permission.CHANGE_WIFI_STATE" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_LOCATION_EXTRA_COMMANDS" />
+    <uses-permission android:name="android.permission.CHANGE_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.GET_TASKS" />
+    <uses-permission android:name="android.permission.CAMERA" />
+
+
+</manifest>

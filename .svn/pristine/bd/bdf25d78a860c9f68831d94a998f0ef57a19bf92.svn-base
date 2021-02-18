@@ -1,0 +1,134 @@
+apply plugin: 'com.android.application'
+def static releaseTime() {
+    return new Date().format("yyyyMMdd", TimeZone
+            .getTimeZone("UTC"))
+}
+
+android {
+    compileSdkVersion 28
+
+    defaultConfig {
+//        applicationId "com.hs.advertise"
+        minSdkVersion 17
+        targetSdkVersion 28
+        flavorDimensions "versionCode"
+        versionCode 12
+        versionName "1.012"
+    }
+
+    // 自定义输出配置
+    applicationVariants.all { variant ->
+        variant.outputs.all {
+            // 输出apk名称为@lzui-V1.936-C106-LZHH02-release-sign-20190523.apk
+            outputFileName = "Advertise-V${defaultConfig.versionName}-C${defaultConfig.versionCode}-${variant.flavorName}-signed-${releaseTime()}.apk"
+        }
+    }
+
+    signingConfigs {
+
+        debug {
+            storeFile file("../config/platform.jks")
+            storePassword "654321"
+            keyAlias "huld"
+            keyPassword "654321"
+        }
+        release {
+            storeFile file("../config/systemsign.jks")
+            storePassword "123456"
+            keyAlias "key0"
+            keyPassword "123456"
+        }
+        hisiRelease {
+            storeFile file("../config/systemhisi.jks")
+            storePassword "123456"
+            keyAlias "key0"
+            keyPassword "123456"
+        }
+
+
+    }
+    //打包渠道配置
+    productFlavors {
+        //海思版
+        HISI {
+            applicationId "com.hs.advertise"
+//            manifestPlaceholders = ["COVERSION_VALUE": "HISI"]
+            signingConfig = signingConfigs.hisiRelease
+            buildConfigField "String", "BASE_URL", '"http://ad.aihmong.com/"'
+        }
+        //公版
+        LZ {
+            applicationId "com.lzui.advertise"
+//            manifestPlaceholders = ["COVERSION_VALUE": "LZ"]
+            signingConfig = signingConfigs.release
+            buildConfigField "String", "BASE_URL", '"http://ad.lunzn.com/"'
+        }
+    }
+
+    buildTypes {
+
+        debug {
+            // 显示Log
+            buildConfigField "boolean", "LOG_DEBUG", "true"
+            minifyEnabled false
+            zipAlignEnabled false
+            shrinkResources false
+            signingConfig null
+        }
+
+        release {
+            minifyEnabled false
+            buildConfigField "boolean", "LOG_DEBUG", "false"
+            // 混淆
+            // Zipalign优化
+            zipAlignEnabled false
+            // 移除无用的resource文件
+            shrinkResources false
+            // 前一部分代表系统默认的android程序的混淆文件，该文件已经包含了基本的混淆声明，后一个文件是自己的定义混淆文件
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            signingConfig null
+        }
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+    lintOptions {
+        abortOnError false
+        checkReleaseBuilds false
+        // 防止在发布的时候出现因MissingTranslation导致Build Failed!
+        disable 'MissingTranslation'
+        disable 'GoogleAppIndexingWarning'
+    }
+}
+
+
+
+dependencies {
+    implementation fileTree(include: ['*.jar'], dir: 'libs')
+    implementation 'com.android.support.constraint:constraint-layout:1.0.2'
+
+    implementation 'io.reactivex.rxjava2:rxjava:2.2.10'
+    implementation 'io.reactivex.rxjava2:rxandroid:2.1.1'
+    implementation 'com.squareup.retrofit2:retrofit:2.6.0'
+    implementation 'com.squareup.retrofit2:converter-gson:2.6.0'
+    implementation 'com.squareup.retrofit2:adapter-rxjava2:2.6.0'
+    implementation 'com.squareup.okhttp3:logging-interceptor:3.12.3'
+    implementation 'com.squareup.okhttp3:okhttp:3.12.3'
+    implementation 'com.android.support:support-v4:28.0.0'
+    testImplementation 'junit:junit:4.12'
+    implementation 'org.greenrobot:eventbus:3.0.0'
+    implementation 'com.alibaba:fastjson:1.2.7'
+    api 'com.lunzn:tool:1.2.2'
+    implementation 'com.lunzn:systool:1.0.1'
+    implementation project(':convenientbanner')
+    implementation project(':VideoCacheLib')
+
+    implementation 'com.github.bumptech.glide:glide:4.8.0'
+    annotationProcessor('com.github.bumptech.glide:compiler:4.3.1')
+    
+    implementation 'com.android.support:recyclerview-v7:28.0.0'
+    implementation 'com.lunzn:file:1.0.5'
+    implementation files('libs/platformsdkm2.jar')
+    api 'com.google.android.exoplayer:exoplayer:2.9.5'
+}

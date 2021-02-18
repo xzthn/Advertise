@@ -1,0 +1,143 @@
+package com.hs.advertise.business;
+
+import android.content.Context;
+import android.content.Intent;
+
+import com.hs.advertise.MyApplication;
+import com.hs.advertise.config.IntentParam;
+import com.hs.advertise.config.IntentValue;
+import com.hs.advertise.config.TypeParam;
+import com.hs.advertise.mvp.model.bean.AdConfig;
+import com.hs.advertise.mvp.model.bean.AdInfo;
+import com.hs.advertise.mvp.model.bean.AdResource;
+import com.hs.advertise.ui.activity.PhotoActivity;
+import com.hs.advertise.ui.activity.VideoActivity;
+import com.hs.advertise.utils.ActivityUtil;
+import com.lunzn.tool.log.LogUtil;
+
+import java.io.Serializable;
+import java.util.List;
+
+/**
+ * Desc: TODO
+ * <p>
+ * Author: ganxinrong
+ * PackageName: com.hs.advertise.utils.business
+ * ProjectName: Advertise
+ * Date: 2020/3/11 13:58
+ */
+public class PlayLogicUtil {
+
+    private static final String TAG = "Tag_" + PlayLogicUtil.class.getSimpleName();
+
+    /**
+     * 应用启动，判断是否有广告、播放何种广告
+     *
+     * @param packName
+     * @return AdInfo
+     */
+    public static AdInfo getAppLaunchAds(String packName) {
+        AdConfig mAdConfigBiz = MyApplication.getInstance().getAdConfigBiz();
+        LogUtil.i(TAG, "mAdConfigBiz:  " + mAdConfigBiz);
+        try {
+            if (mAdConfigBiz != null) {
+                AdConfig.DataBean data = mAdConfigBiz.getData();
+                if (data == null) { return null; }
+                LogUtil.i(TAG, "getAppLaunchAds:  " + data.getAppLaunchAds());
+                LogUtil.i(TAG, "getDefaultAppLaunchAds:  " + data.getDefaultAppLaunchAds());
+
+                if (data.getNoLaunchAdAppList() != null
+                        && data.getNoLaunchAdAppList().contains(packName)) {
+                    LogUtil.i(TAG, "此包名无广告");
+                    return null;
+                } else if (data.getAppLaunchAds() != null
+                        && data.getAppLaunchAds().containsKey(packName)
+                        && data.getAppLaunchAds().get(packName) != null
+                        && data.getAppLaunchAds().get(packName).getAdResources() != null
+                ) {
+                    //启动广告
+                    return data.getAppLaunchAds().get(packName);
+                } else if (data.getDefaultAppLaunchAds() != null
+                        && data.getDefaultAppLaunchAds().getAdResources() != null
+                        && data.getDefaultAppLaunchAds().getAdResources().size() > 0) {
+                    LogUtil.i(TAG, "返回默认广告:" + data.getDefaultAppLaunchAds().getAdResources().get(0).getName());
+                    return data.getDefaultAppLaunchAds();
+                }
+            }
+        } catch (NullPointerException e) {
+            e.printStackTrace();
+        }
+        //无广告
+        return null;
+    }
+
+
+    /**
+     * 开机启动，播放全屏广告
+     *
+     * @return AdInfo
+     */
+    public static AdInfo getFullScreenAds() {
+        AdConfig mAdConfigBiz = MyApplication.getInstance().getAdConfigBiz();
+        if (mAdConfigBiz != null && mAdConfigBiz.getData() != null && mAdConfigBiz.getData().getFullScreenAds() != null
+                && mAdConfigBiz.getData().getFullScreenAds().getAdResources() != null
+                && mAdConfigBiz.getData().getFullScreenAds().getAdResources().size() > 0) {
+            return mAdConfigBiz.getData().getFullScreenAds();
+        }
+        return null;
+    }
+
+
+    public static void bootStartActivity(Context context, AdInfo mFullScreenAds) {
+        List<AdResource> mAdResources = mFullScreenAds.getAdResources();
+        LogUtil.i(TAG, "adResources size=" + mAdResources.size());
+        LogUtil.i(TAG, "fullScreenAds type=" + mFullScreenAds.getType());
+        if (mAdResources.size() > 0) {
+            ////服务器type字段区分启动那个activity
+            if (mFullScreenAds.getType() == TypeParam.TYPE_SINGLE_PHOTO || mFullScreenAds.getType() == TypeParam.TYPE_MULTIPLE_PHOTO) {
+                ActivityUtil.getInstance().finishActivity(VideoActivity.class);
+                Intent intent1 = new Intent(context, PhotoActivity.class);
+                intent1.putExtra(IntentParam.KEY_ADINFO, (Serializable) mFullScreenAds);
+                intent1.putExtra(IntentParam.KEY_AD_POSITION, IntentValue.AD_POSITION_BOOT);
+                intent1.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                context.startActivity(intent1);
+                LogUtil.i(TAG, "go start PhotoActivity");
+            } else {
+                ActivityUtil.getInstance().finishActivity(PhotoActivity.class);
+                Intent intent2 = new Intent(context, VideoActivity.class);
+                intent2.putExtra(IntentParam.KEY_AD_POSITION, IntentValue.AD_POSITION_BOOT);
+                intent2.putExtra(IntentParam.KEY_ADINFO, (Serializable) mFullScreenAds);
+                intent2.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                context.startActivity(intent2);
+                LogUtil.i(TAG, "go start VideoActivity");
+            }
+        }
+    }
+
+
+    public static Intent getBootStartIntent(Context context, AdInfo mFullScreenAds) {
+        if (mFullScreenAds != null) {
+            List<AdResource> mAdResources = mFullScreenAds.getAdResources();
+            if (mAdResources != null && mAdResources.size() > 0) {
+                LogUtil.i(TAG, "adResources size=" + mAdResources.size());
+                LogUtil.i(TAG, "fullScreenAds type=" + mFullScreenAds.getType());
+                ////服务器type字段区分启动那个activity
+                if (mFullScreenAds.getType() == TypeParam.TYPE_SINGLE_PHOTO || mFullScreenAds.getType() == TypeParam.TYPE_MULTIPLE_PHOTO) {
+                    Intent intent1 = new Intent(context, PhotoActivity.class);
+                    intent1.putExtra(IntentParam.KEY_ADINFO, (Serializable) mFullScreenAds);
+                    intent1.putExtra(IntentParam.KEY_AD_POSITION, IntentValue.AD_POSITION_BOOT);
+                    intent1.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                    return intent1;
+                } else {
+                    Intent intent2 = new Intent(context, VideoActivity.class);
+                    intent2.putExtra(IntentParam.KEY_AD_POSITION, IntentValue.AD_POSITION_BOOT);
+                    intent2.putExtra(IntentParam.KEY_ADINFO, (Serializable) mFullScreenAds);
+                    intent2.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                    return intent2;
+                }
+            }
+        }
+        return null;
+    }
+
+}

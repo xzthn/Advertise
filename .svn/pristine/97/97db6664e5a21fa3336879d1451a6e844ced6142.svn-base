@@ -1,0 +1,103 @@
+package com.hs.advertise.mvp.subscribers;
+
+import android.content.Context;
+import android.util.Log;
+
+import com.hs.advertise.mvp.progress.CustomProgress;
+import com.hs.advertise.utils.RxjavaUtils;
+import com.lunzn.tool.log.LogUtil;
+
+import java.net.ConnectException;
+import java.net.SocketTimeoutException;
+
+import io.reactivex.Observer;
+import io.reactivex.disposables.Disposable;
+
+/**
+ * 用于在Http请求开始时，自动显示一个ProgressDialog
+ * 在Http请求结束是，关闭ProgressDialog
+ * 调用者自己对请求数据进行处理
+ * Created by bdf on 16/3/10.
+ */
+public class ProgressSubscriber implements Observer<Object> {
+
+    private static final String TAG = ProgressSubscriber.class.getSimpleName();
+    private Context mContext;
+    private boolean isShowLoading;
+    private String url;
+    private SubscriberOnNextListener mSubscriberOnNextListener;
+
+    public ProgressSubscriber(boolean isShow, SubscriberOnNextListener mSubscriberOnNextListener, Context context, String url) {
+        this.isShowLoading = isShow;
+        this.mSubscriberOnNextListener = mSubscriberOnNextListener;
+        this.mContext = context;
+        this.url = url;
+    }
+
+    public ProgressSubscriber(SubscriberOnNextListener mSubscriberOnNextListener, Context context, String url) {
+        this.mSubscriberOnNextListener = mSubscriberOnNextListener;
+        this.mContext = context;
+        this.url = url;
+    }
+
+    @Override
+    public void onSubscribe(Disposable d) {
+        LogUtil.i(TAG, "http onSubscribe");
+        if (isShowLoading) {
+            RxjavaUtils.doOnUIThread(new RxjavaUtils.UITask() {
+                @Override
+                public void doOnUI() {
+                    CustomProgress.show(mContext, "", true);
+                }
+            });
+        }
+    }
+
+    @Override
+    public void onNext(Object s) {
+        LogUtil.i(TAG, "http onNext");
+        if (mSubscriberOnNextListener != null) {
+            mSubscriberOnNextListener.onNext(url, s);
+        }
+    }
+
+    /**
+     * 将onNext方法中的返回结果交给Activity或Fragment自己处理
+     *
+     * @param o 创建Subscriber时的泛型类型
+     */
+
+    /**
+     * 对错误进行统一处理
+     * 隐藏ProgressDialog
+     *
+     * @param e
+     */
+    @Override
+    public void onError(Throwable e) {
+        LogUtil.i(TAG, "http onError:" + e.getMessage());
+        if (e instanceof SocketTimeoutException) {
+            Log.i(TAG, "http  onError SocketTimeoutException -> ");
+        } else if (e instanceof ConnectException) {
+            Log.i(TAG, "http  onError ConnectException -> ");
+        } else {
+        }
+        if (mSubscriberOnNextListener != null) {
+            mSubscriberOnNextListener.onError(e);
+        }
+        onComplete();
+    }
+
+    @Override
+    public void onComplete() {
+        LogUtil.i(TAG, "http complete");
+        if (isShowLoading) {
+            RxjavaUtils.doOnUIThread(new RxjavaUtils.UITask() {
+                @Override
+                public void doOnUI() {
+                    CustomProgress.disMiss();
+                }
+            });
+        }
+    }
+}

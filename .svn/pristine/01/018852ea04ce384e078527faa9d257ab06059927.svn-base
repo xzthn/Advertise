@@ -1,0 +1,42 @@
+package com.hs.advertise.receiver;
+
+import android.content.BroadcastReceiver;
+import android.content.Context;
+import android.content.Intent;
+
+import com.hs.advertise.service.DownloadService;
+import com.hs.advertise.utils.net.NetwrokUtil;
+import com.lunzn.tool.log.LogUtil;
+
+/**
+ * Desc: TODO
+ * <p>
+ * Author: ganxinrong
+ * PackageName: com.hs.advertise.receiver
+ * ProjectName: Advertise
+ * Date: 2020/3/13 9:56
+ */
+public class NetworkResumeReciver extends BroadcastReceiver {
+    public static String TAG = NetworkResumeReciver.class.getSimpleName();
+
+    private boolean flag = true;//加个标志，否则onReceive方法会重复接收通知
+
+    public NetworkResumeReciver() {
+        LogUtil.i(TAG, "NetworkResumeReciver");
+    }
+
+    @Override
+    public void onReceive(Context context, Intent intent) {
+        String action = intent.getAction();
+        LogUtil.i(TAG, "网络变化");
+        boolean isConnected = NetwrokUtil.isNetworkConnected(context);
+        if (isConnected) {
+            LogUtil.i(TAG, "网络是连接状态");
+            Intent mServiceintent = new Intent(context, DownloadService.class);
+            context.startService(mServiceintent);
+        }
+
+    }
+
+
+}

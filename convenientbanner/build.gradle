@@ -1,0 +1,47 @@
+apply plugin: 'com.android.library'
+version = "2.1.5"
+android {
+    compileSdkVersion 28
+    defaultConfig {
+        minSdkVersion 14
+        targetSdkVersion 25
+        versionCode 9
+        versionName "2.1.5"
+    }
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+        }
+    }
+
+    lintOptions {
+        abortOnError false
+        ignoreWarnings true
+
+    }
+    tasks.withType(Javadoc) {
+        options.addStringOption('Xdoclint:none', '-quiet')
+        options.addStringOption('encoding', 'UTF-8')
+        options.addStringOption('charSet', 'UTF-8')
+    }
+
+}
+
+
+
+dependencies {
+    compileOnly 'com.android.support:recyclerview-v7:28.0.0'
+    compileOnly 'com.lunzn:tool:1.2.0'
+
+}
+
+task makeJar(type:Copy) {
+    delete 'build/outputs/lunzn_convenientbanner.jar'
+    from('build/intermediates/bundles/release/')//jar文件来源
+    into('build/libs/')   //生成路径
+    include('classes.jar')
+    rename('classes.jar','lunzn_convenientbanner.jar')  //命名为test.jar
+}
+
+makeJar.dependsOn(build)

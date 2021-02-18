@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <integer-array name="anim_names">
+        <item >@mipmap/app_load_level_1</item>
+        <item >@mipmap/app_load_level_2</item>
+        <item >@mipmap/app_load_level_3</item>
+        <item >@mipmap/app_load_level_4</item>
+        <item >@mipmap/app_load_level_5</item>
+        <item >@mipmap/app_load_level_6</item>
+        <item >@mipmap/app_load_level_7</item>
+        <item >@mipmap/app_load_level_8</item>
+        <item >@mipmap/app_load_level_9</item>
+<!--        <item >@mipmap/app_load_level_10</item>-->
+<!--        <item >@mipmap/app_load_level_11</item>-->
+<!--        <item >@mipmap/app_load_level_12</item>-->
+    </integer-array>
+</resources>

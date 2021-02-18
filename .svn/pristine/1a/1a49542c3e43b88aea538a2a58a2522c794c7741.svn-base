@@ -1,0 +1,59 @@
+package com.hs.advertise.service.mqtt;
+
+import android.app.Service;
+import android.content.Intent;
+import android.os.IBinder;
+import android.support.annotation.Nullable;
+
+import com.hs.advertise.service.DownloadService;
+import com.lunzn.tool.log.LogUtil;
+import com.lunzn.tool.util.CommonUtil;
+
+
+/**
+ * 推送指令服务
+ * 作者:Administrator
+ * 包名:com.lz.smartcontrol.service
+ * 工程名:lzsmartcontrol
+ * 时间:2018/1/3 14:11
+ * 说明: mqtt消息接收服务  所有接收到的mqtt消息都从这个类中转发处理
+ */
+public class MessagePushService extends Service {
+
+    private static final String TAG = MessagePushService.class.getSimpleName();
+
+    @Override
+    public void onCreate() {
+        super.onCreate();
+
+    }
+
+
+    @Nullable
+    @Override
+    public IBinder onBind(Intent intent) {
+        return null;
+    }
+
+
+    @Override
+    public int onStartCommand(Intent intent, int flags, int startId) {
+        //广告更新推送信息
+        LogUtil.w(TAG, "intent " + CommonUtil.toUri(intent));
+        if (intent.hasExtra("event")) {
+            try {
+                String event = intent.getStringExtra("event").trim();
+                if (!CommonUtil.isEmpty(event) && "AD_UPDATE".equals(event)) {
+                    DownloadService.hasGettedData.set(false);
+                    LogUtil.i(TAG, "推送service启动downloadService去下载  DownloadService.hasGettedData " + DownloadService.hasGettedData.get());
+                    Intent service = new Intent(this, DownloadService.class);
+                    startService(service);
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+        return START_NOT_STICKY;
+    }
+
+}
